@@ -1,0 +1,173 @@
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import '../core/format.dart';
+import 'database.dart';
+import 'models.dart';
+
+/// Requête SQLite réactive : le flux ré-émet à chaque changement des tables lues, que la
+/// modification vienne de l'utilisateur ou de la synchronisation.
+Stream<List<T>> _query<T>(
+  Ref ref,
+  String sql,
+  List<Object?> params,
+  T Function(DbRow) map,
+) {
+  final db = ref.watch(powerSyncProvider);
+  return db.watch(sql, parameters: params).map((rows) => [for (final r in rows) map(r)]);
+}
+
+// --- Compte et club ---------------------------------------------------------------------
+
+final myMembershipsProvider = StreamProvider<List<Membership>>((ref) {
+  final uid = ref.watch(userProvider)?.id;
+  if (uid == null) return Stream.value(const []);
+  return _query(ref, 'SELECT * FROM memberships WHERE user_id = ?', [uid], Membership.fromRow);
+});
+
+final activeMembershipProvider = Provider<Membership?>((ref) {
+  final list = ref.watch(myMembershipsProvider).value ?? const [];
+  return list.where((m) => m.isActive).firstOrNull;
+});
+
+final pendingMembershipProvider = Provider<Membership?>((ref) {
+  final list = ref.watch(myMembershipsProvider).value ?? const [];
+  return list.where((m) => !m.isActive).firstOrNull;
+});
+
+final clubIdProvider = Provider<String?>((ref) => ref.watch(activeMembershipProvider)?.clubId);
+
+final isCoachProvider = Provider<bool>(
+  (ref) => ref.watch(activeMembershipProvider)?.role.isCoach ?? false,
+);
+
+final clubProvider = StreamProvider<Club?>((ref) {
+  final clubId = ref.watch(clubIdProvider);
+  if (clubId == null) return Stream.value(null);
+  return _query(ref, 'SELECT * FROM clubs WHERE id = ?', [clubId], Club.fromRow)
+      .map((l) => l.firstOrNull);
+});
+
+// --- Référentiels du club -----------------------------------------------------------------
+
+final groupsProvider = StreamProvider<List<Group>>((ref) {
+  final clubId = ref.watch(clubIdProvider);
+  if (clubId == null) return Stream.value(const []);
+  return _query(
+    ref,
+    'SELECT * FROM training_groups WHERE club_id = ? AND archived = 0 ORDER BY sort_order, name',
+    [clubId],
+    Group.fromRow,
+  );
+});
+
+final sessionTypesProvider = StreamProvider<List<SessionType>>((ref) {
+  final clubId = ref.watch(clubIdProvider);
+  if (clubId == null) return Stream.value(const []);
+  return _query(
+    ref,
+    'SELECT * FROM session_types WHERE club_id = ? AND archived = 0 ORDER BY sort_order',
+    [clubId],
+    SessionType.fromRow,
+  );
+});
+
+final membersProvider = StreamProvider<List<Membership>>((ref) {
+  final clubId = ref.watch(clubIdProvider);
+  if (clubId == null) return Stream.value(const []);
+  return _query(
+    ref,
+    "SELECT * FROM memberships WHERE club_id = ? AND status = 'active' ORDER BY display_name",
+    [clubId],
+    Membership.fromRow,
+  );
+});
+
+/// Demandes d'adhésion en attente (synchronisées uniquement pour les coachs).
+final pendingRequestsProvider = StreamProvider<List<Membership>>((ref) {
+  final clubId = ref.watch(clubIdProvider);
+  if (clubId == null) return Stream.value(const []);
+  return _query(
+    ref,
+    "SELECT * FROM memberships WHERE club_id = ? AND status = 'pending' ORDER BY display_name",
+    [clubId],
+    Membership.fromRow,
+  );
+});
+
+final athletesProvider = StreamProvider<List<Athlete>>((ref) {
+  final clubId = ref.watch(clubIdProvider);
+  if (clubId == null) return Stream.value(const []);
+  return _query(
+    ref,
+    'SELECT * FROM athletes WHERE club_id = ? ORDER BY full_name',
+    [clubId],
+    Athlete.fromRow,
+  );
+});
+
+/// Ma fiche athlète dans le club courant (null pour un coach).
+final myAthleteProvider = Provider<Athlete?>((ref) {
+  final uid = ref.watch(userProvider)?.id;
+  final athletes = ref.watch(athletesProvider).value ?? const [];
+  return athletes.where((a) => a.userId == uid).firstOrNull;
+});
+
+/// athlete_id → ensemble des groupes. Un coach reçoit tous les liens du club, un athlète
+/// uniquement les siens (règles de sync).
+final groupLinksProvider = StreamProvider<Map<String, Set<String>>>((ref) {
+  final clubId = ref.watch(clubIdProvider);
+  if (clubId == null) return Stream.value(const {});
+  return _query(
+    ref,
+    'SELECT athlete_id, group_id FROM group_athletes WHERE club_id = ?',
+    [clubId],
+    (r) => (r['athlete_id'] as String, r['group_id'] as String),
+  ).map((links) {
+    final map = <String, Set<String>>{};
+    for (final (athleteId, groupId) in links) {
+      (map[athleteId] ??= {}).add(groupId);
+    }
+    return map;
+  });
+});
+
+// --- Séances ----------------------------------------------------------------------------
+
+/// Séances placées d'une semaine ; la clé est le lundi au format `yyyy-MM-dd`.
+final sessionsForWeekProvider =
+    StreamProvider.family<List<PlannedSession>, String>((ref, mondayIso) {
+  final clubId = ref.watch(clubIdProvider);
+  if (clubId == null) return Stream.value(const []);
+  final sunday = isoDate(addDays(parseIsoDate(mondayIso), 6));
+  return _query(
+    ref,
+    'SELECT * FROM sessions WHERE club_id = ? AND is_template = 0 '
+    'AND scheduled_date BETWEEN ? AND ? '
+    'ORDER BY scheduled_date, start_time IS NULL, start_time, title',
+    [clubId, mondayIso, sunday],
+    PlannedSession.fromRow,
+  );
+});
+
+/// Modèles de la bibliothèque du club.
+final templatesProvider = StreamProvider<List<Template>>((ref) {
+  final clubId = ref.watch(clubIdProvider);
+  if (clubId == null) return Stream.value(const []);
+  return _query(
+    ref,
+    'SELECT * FROM sessions WHERE club_id = ? AND is_template = 1 ORDER BY title COLLATE NOCASE',
+    [clubId],
+    Template.fromRow,
+  );
+});
+
+/// Blocs d'une séance ou d'un modèle, dans l'ordre.
+final blocksForSessionProvider =
+    StreamProvider.family<List<SessionBlock>, String>((ref, sessionId) {
+  return _query(
+    ref,
+    'SELECT * FROM session_blocks WHERE session_id = ? ORDER BY position',
+    [sessionId],
+    SessionBlock.fromRow,
+  );
+});

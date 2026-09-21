@@ -1,0 +1,183 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:intl/date_symbol_data_local.dart';
+
+import 'package:coach/core/format.dart';
+import 'package:coach/data/database.dart';
+import 'package:coach/data/models.dart';
+import 'package:coach/features/auth/auth_screen.dart';
+import 'package:coach/features/club/club_screen.dart';
+import 'package:coach/features/club/profile_screen.dart';
+import 'package:coach/features/onboarding/onboarding_screen.dart';
+import 'package:coach/features/planning/week_screen.dart';
+
+import 'helpers.dart';
+
+void main() {
+  setUpAll(() => initializeDateFormatting('fr'));
+
+  final today = isoDate(dateOnly(DateTime.now()));
+
+  group('vue semaine', () {
+    testWidgets('affiche les séances du jour avec type, titre et groupe', (tester) async {
+      phoneScreen(tester);
+      final sessions = [
+        PlannedSession(
+          id: 's1', typeId: fractionne.id, title: '6 × 400 m', groupId: sprintGroup.id,
+          date: today, startTime: '18:30:00', durationMin: 90,
+        ),
+        PlannedSession(id: 's2', typeId: endurance.id, title: 'Footing 45’', groupId: demiGroup.id, date: today),
+      ];
+      await tester.pumpWidget(testApp(const WeekScreen(), overrides: clubOverrides(sessions: sessions)));
+      await tester.pumpAndSettle();
+
+      expect(find.text('6 × 400 m'), findsOneWidget);
+      expect(find.text('Fractionné'), findsOneWidget, reason: 'le type est écrit, pas seulement coloré');
+      expect(find.text('Sprint'), findsWidgets);
+      expect(find.text('18:30 · 90 min'), findsOneWidget);
+      expect(find.text('Footing 45’'), findsOneWidget);
+      expect(find.text('Endurance'), findsOneWidget);
+    });
+
+    testWidgets('jour vide : message et bouton d’ajout pour un coach', (tester) async {
+      phoneScreen(tester);
+      await tester.pumpWidget(testApp(const WeekScreen(), overrides: clubOverrides()));
+      await tester.pumpAndSettle();
+      expect(find.text('Rien de prévu ce jour.'), findsOneWidget);
+      expect(find.text('Ajouter une séance'), findsOneWidget);
+      expect(find.byKey(const Key('add-session')), findsOneWidget);
+    });
+
+    testWidgets('un athlète ne voit aucun bouton de création', (tester) async {
+      phoneScreen(tester);
+      final overrides = clubOverrides(me: membership(role: ClubRole.athlete));
+      await tester.pumpWidget(testApp(const WeekScreen(), overrides: overrides));
+      await tester.pumpAndSettle();
+      expect(find.text('Rien de prévu ce jour.'), findsOneWidget);
+      expect(find.text('Ajouter une séance'), findsNothing);
+      expect(find.byKey(const Key('add-session')), findsNothing);
+    });
+
+    testWidgets('le filtre par groupe restreint la liste', (tester) async {
+      phoneScreen(tester);
+      final sessions = [
+        PlannedSession(id: 's1', typeId: fractionne.id, title: 'Séance sprint', groupId: sprintGroup.id, date: today),
+        PlannedSession(id: 's2', typeId: endurance.id, title: 'Séance demi-fond', groupId: demiGroup.id, date: today),
+      ];
+      await tester.pumpWidget(testApp(const WeekScreen(), overrides: clubOverrides(sessions: sessions)));
+      await tester.pumpAndSettle();
+      expect(find.text('Séance sprint'), findsOneWidget);
+      expect(find.text('Séance demi-fond'), findsOneWidget);
+
+      await tester.tap(find.widgetWithText(ChoiceChip, 'Sprint'));
+      await tester.pumpAndSettle();
+      expect(find.text('Séance sprint'), findsOneWidget);
+      expect(find.text('Séance demi-fond'), findsNothing);
+    });
+  });
+
+  group('club', () {
+    testWidgets('le super coach voit les demandes de coach et peut approuver', (tester) async {
+      final fake = FakeClubActions();
+      final requests = [
+        membership(id: 'r1', userId: 'u2', role: ClubRole.coach, active: false, name: 'Marc'),
+        membership(id: 'r2', userId: 'u3', role: ClubRole.athlete, active: false, name: 'Léa'),
+      ];
+      await tester.pumpWidget(testApp(const ClubScreen(), overrides: clubOverrides(requests: requests, clubActions: fake)));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Demandes en attente'), findsOneWidget);
+      await tester.tap(find.byKey(const Key('approve-Marc')));
+      expect(fake.approved, ['r1']);
+    });
+
+    testWidgets('un simple coach ne peut pas valider une demande de coach', (tester) async {
+      final requests = [
+        membership(id: 'r1', userId: 'u2', role: ClubRole.coach, active: false, name: 'Marc'),
+        membership(id: 'r2', userId: 'u3', role: ClubRole.athlete, active: false, name: 'Léa'),
+      ];
+      final fake = FakeClubActions();
+      final overrides = clubOverrides(me: membership(role: ClubRole.coach), requests: requests, clubActions: fake);
+      await tester.pumpWidget(testApp(const ClubScreen(), overrides: overrides));
+      await tester.pumpAndSettle();
+
+      expect(find.byKey(const Key('approve-Marc')), findsNothing);
+      expect(find.byKey(const Key('approve-Léa')), findsOneWidget);
+      await tester.tap(find.byKey(const Key('approve-Léa')));
+      expect(fake.approved, ['r2']);
+      expect(find.textContaining('seul le super coach'), findsOneWidget);
+      await tester.scrollUntilVisible(find.text('Se déconnecter'), 300);
+      expect(find.text('Quitter le club'), findsOneWidget, reason: 'un coach peut partir');
+    });
+
+    testWidgets('le super coach ne peut pas quitter sans passer la main', (tester) async {
+      await tester.pumpWidget(testApp(const ClubScreen(), overrides: clubOverrides()));
+      await tester.pumpAndSettle();
+      // On descend jusqu'au pied de page : sans cela, l'absence pourrait venir de la liste paresseuse.
+      await tester.scrollUntilVisible(find.text('Se déconnecter'), 300);
+      expect(find.text('Quitter le club'), findsNothing);
+    });
+
+    testWidgets('groupes, athlètes et compteurs', (tester) async {
+      const lea = Athlete(id: 'a1', fullName: 'Léa Martin', userId: 'u3');
+      const tom = Athlete(id: 'a2', fullName: 'Tom Durand');
+      final overrides = clubOverrides(
+        athletes: const [lea, tom],
+        links: {'a1': {sprintGroup.id}, 'a2': {sprintGroup.id, demiGroup.id}},
+      );
+      await tester.pumpWidget(testApp(const ClubScreen(), overrides: overrides));
+      await tester.pumpAndSettle();
+
+      expect(find.text('2 athlètes'), findsOneWidget, reason: 'Sprint compte Léa et Tom');
+      expect(find.text('1 athlète'), findsOneWidget, reason: 'Demi-fond compte Tom seul');
+      expect(find.text('Compte lié · 1 groupe'), findsOneWidget);
+      expect(find.text('Pas encore de compte · 2 groupes'), findsOneWidget);
+    });
+  });
+
+  group('profil athlète', () {
+    testWidgets('un athlète rejoint et quitte librement un groupe', (tester) async {
+      final planning = FakePlanning();
+      const me = Athlete(id: 'a1', fullName: 'Léa', userId: 'u-julie');
+      final overrides = clubOverrides(
+        me: membership(role: ClubRole.athlete),
+        planning: planning,
+        athletes: const [me],
+        links: {'a1': {sprintGroup.id}},
+      );
+      await tester.pumpWidget(testApp(const ProfileScreen(), overrides: overrides));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byKey(const Key('my-group-Demi-fond')));
+      await tester.tap(find.byKey(const Key('my-group-Sprint')));
+      expect(planning.groupToggles, [(demiGroup.id, true), (sprintGroup.id, false)]);
+    });
+  });
+
+  group('connexion et onboarding', () {
+    testWidgets('validation du formulaire de connexion', (tester) async {
+      await tester.pumpWidget(testApp(const AuthScreen(), overrides: [userProvider.overrideWithValue(null)]));
+      await tester.tap(find.byKey(const Key('auth-submit')));
+      await tester.pump();
+      expect(find.text('Email invalide'), findsOneWidget);
+      expect(find.byKey(const Key('auth-name')), findsNothing, reason: 'pas de nom à la connexion');
+
+      await tester.tap(find.text('Créer un compte'));
+      await tester.pump();
+      expect(find.byKey(const Key('auth-name')), findsOneWidget);
+      await tester.enterText(find.byKey(const Key('auth-email')), 'julie@example.com');
+      await tester.enterText(find.byKey(const Key('auth-password')), 'court');
+      await tester.tap(find.byKey(const Key('auth-submit')));
+      await tester.pump();
+      expect(find.text('Indique ton nom'), findsOneWidget);
+      expect(find.text('8 caractères minimum'), findsWidgets);
+    });
+
+    testWidgets('onboarding : créer ou rejoindre, avec le prénom', (tester) async {
+      await tester.pumpWidget(testApp(const OnboardingScreen(), overrides: [userProvider.overrideWithValue(testUser)]));
+      expect(find.text('Bienvenue Julie'), findsOneWidget);
+      expect(find.byKey(const Key('choice-create')), findsOneWidget);
+      expect(find.byKey(const Key('choice-join')), findsOneWidget);
+    });
+  });
+}

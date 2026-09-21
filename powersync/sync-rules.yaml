@@ -1,0 +1,54 @@
+# Règles de synchronisation PowerSync (à coller dans le tableau de bord de l'instance).
+#
+# Principe : chaque appareil ne télécharge que ce que la RLS l'autorise à lire.
+#  - un coach reçoit tout son club ;
+#  - un athlète reçoit uniquement les séances des groupes dont il fait partie.
+#
+# Les requêtes de paramètres de PowerSync ne font pas de jointure : c'est pourquoi
+# `memberships.display_name`, `group_athletes.user_id` et `session_blocks.group_id` sont
+# dénormalisés côté Postgres (voir 0001_schema.sql).
+#
+# Non synchronisés pour l'instant : integrations, integration_secrets, activities, profiles.
+#
+# NB : rédigé sans instance PowerSync sous la main. À valider dans le tableau de bord
+# (bouton "Validate") lors de la mise en place ; voir le README.
+
+bucket_definitions:
+  # Mes propres adhésions (y compris "en attente") et ma fiche athlète.
+  my_account:
+    parameters: SELECT request.user_id() AS user_id
+    data:
+      - SELECT * FROM memberships WHERE user_id = bucket.user_id
+      - SELECT * FROM athletes WHERE user_id = bucket.user_id
+      - SELECT * FROM group_athletes WHERE user_id = bucket.user_id
+
+  # Ce que voit tout membre actif d'un club.
+  club_members:
+    parameters: SELECT club_id FROM memberships WHERE user_id = request.user_id() AND status = 'active'
+    data:
+      - SELECT * FROM clubs WHERE id = bucket.club_id
+      - SELECT * FROM memberships WHERE club_id = bucket.club_id AND status = 'active'
+      - SELECT * FROM training_groups WHERE club_id = bucket.club_id
+      - SELECT * FROM session_types WHERE club_id = bucket.club_id
+      - SELECT * FROM events WHERE club_id = bucket.club_id
+      - SELECT * FROM event_groups WHERE club_id = bucket.club_id
+
+  # Ce que voient en plus les coachs et le propriétaire.
+  club_coaches:
+    parameters: >
+      SELECT club_id FROM memberships
+      WHERE user_id = request.user_id() AND status = 'active' AND role IN ('owner', 'coach')
+    data:
+      - SELECT * FROM memberships WHERE club_id = bucket.club_id AND status = 'pending'
+      - SELECT * FROM athletes WHERE club_id = bucket.club_id
+      - SELECT * FROM group_athletes WHERE club_id = bucket.club_id
+      - SELECT * FROM invitations WHERE club_id = bucket.club_id
+      - SELECT * FROM sessions WHERE club_id = bucket.club_id
+      - SELECT * FROM session_blocks WHERE club_id = bucket.club_id
+
+  # Athlète : les séances placées dans ses groupes (les modèles ont group_id NULL, donc exclus).
+  athlete_groups:
+    parameters: SELECT group_id FROM group_athletes WHERE user_id = request.user_id()
+    data:
+      - SELECT * FROM sessions WHERE group_id = bucket.group_id
+      - SELECT * FROM session_blocks WHERE group_id = bucket.group_id
