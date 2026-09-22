@@ -5,14 +5,14 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-import 'package:coach/core/theme.dart';
-import 'package:coach/data/actions.dart';
-import 'package:coach/data/database.dart';
-import 'package:coach/data/drafts.dart';
-import 'package:coach/data/models.dart';
-import 'package:coach/data/profile_actions.dart';
-import 'package:coach/data/queries.dart';
-import 'package:coach/data/session_actions.dart';
+import 'package:trackclub/core/theme.dart';
+import 'package:trackclub/data/actions.dart';
+import 'package:trackclub/data/database.dart';
+import 'package:trackclub/data/drafts.dart';
+import 'package:trackclub/data/models.dart';
+import 'package:trackclub/data/profile_actions.dart';
+import 'package:trackclub/data/queries.dart';
+import 'package:trackclub/data/session_actions.dart';
 
 const testUser = User(
   id: 'u-julie',

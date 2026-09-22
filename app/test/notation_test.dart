@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:coach/core/notation.dart';
+import 'package:trackclub/core/notation.dart';
 
 BlockItem one(String s) {
   final items = parseNotation(s);

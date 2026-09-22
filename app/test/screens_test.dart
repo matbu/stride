@@ -2,15 +2,15 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:intl/date_symbol_data_local.dart';
 
-import 'package:coach/core/format.dart';
-import 'package:coach/data/database.dart';
-import 'package:coach/data/models.dart';
-import 'package:coach/features/auth/auth_screen.dart';
-import 'package:coach/features/club/club_screen.dart';
-import 'package:coach/features/club/profile_screen.dart';
-import 'package:coach/features/onboarding/join_club_screen.dart';
-import 'package:coach/features/onboarding/onboarding_screen.dart';
-import 'package:coach/features/planning/week_screen.dart';
+import 'package:trackclub/core/format.dart';
+import 'package:trackclub/data/database.dart';
+import 'package:trackclub/data/models.dart';
+import 'package:trackclub/features/auth/auth_screen.dart';
+import 'package:trackclub/features/club/club_screen.dart';
+import 'package:trackclub/features/club/profile_screen.dart';
+import 'package:trackclub/features/onboarding/join_club_screen.dart';
+import 'package:trackclub/features/onboarding/onboarding_screen.dart';
+import 'package:trackclub/features/planning/week_screen.dart';
 
 import 'helpers.dart';
 

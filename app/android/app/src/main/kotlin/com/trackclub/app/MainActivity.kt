@@ -1,4 +1,4 @@
-package com.coachathle.coach
+package com.trackclub.app
 
 import io.flutter.embedding.android.FlutterActivity
 

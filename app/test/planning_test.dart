@@ -3,16 +3,16 @@ import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:intl/date_symbol_data_local.dart';
 
-import 'package:coach/core/format.dart';
-import 'package:coach/core/notation.dart';
-import 'package:coach/data/drafts.dart';
-import 'package:coach/data/import_csv.dart';
-import 'package:coach/data/models.dart';
-import 'package:coach/features/library/import_screen.dart';
-import 'package:coach/features/library/library_screen.dart';
-import 'package:coach/features/planning/block_card.dart';
-import 'package:coach/features/planning/session_editor.dart';
-import 'package:coach/features/planning/week_screen.dart';
+import 'package:trackclub/core/format.dart';
+import 'package:trackclub/core/notation.dart';
+import 'package:trackclub/data/drafts.dart';
+import 'package:trackclub/data/import_csv.dart';
+import 'package:trackclub/data/models.dart';
+import 'package:trackclub/features/library/import_screen.dart';
+import 'package:trackclub/features/library/library_screen.dart';
+import 'package:trackclub/features/planning/block_card.dart';
+import 'package:trackclub/features/planning/session_editor.dart';
+import 'package:trackclub/features/planning/week_screen.dart';
 
 import 'helpers.dart';
 

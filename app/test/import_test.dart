@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:coach/core/csv.dart';
-import 'package:coach/core/notation.dart';
-import 'package:coach/data/connector.dart';
-import 'package:coach/data/import_csv.dart';
-import 'package:coach/data/models.dart';
+import 'package:trackclub/core/csv.dart';
+import 'package:trackclub/core/notation.dart';
+import 'package:trackclub/data/connector.dart';
+import 'package:trackclub/data/import_csv.dart';
+import 'package:trackclub/data/models.dart';
 
 import 'helpers.dart';
 
