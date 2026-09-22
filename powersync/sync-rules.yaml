@@ -35,9 +35,11 @@ bucket_definitions:
 
   # Ce que voient en plus les coachs et le propriétaire.
   club_coaches:
-    parameters: >
-      SELECT club_id FROM memberships
-      WHERE user_id = request.user_id() AND status = 'active' AND role IN ('owner', 'coach')
+    # Le validateur refuse `role IN ('owner', 'coach')` ("list not supported here") : on utilise
+    # deux requêtes de paramètres, qui doivent renvoyer exactement les mêmes colonnes.
+    parameters:
+      - SELECT club_id FROM memberships WHERE user_id = request.user_id() AND status = 'active' AND role = 'owner'
+      - SELECT club_id FROM memberships WHERE user_id = request.user_id() AND status = 'active' AND role = 'coach'
     data:
       - SELECT * FROM memberships WHERE club_id = bucket.club_id AND status = 'pending'
       - SELECT * FROM athletes WHERE club_id = bucket.club_id
