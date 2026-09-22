@@ -15,8 +15,9 @@ const weekColumnsMinWidth = 720.0;
 /// Vue semaine.
 ///  * Téléphone : bande des 7 jours (pastilles de couleur par type) et agenda du jour
 ///    sélectionné ; glisser horizontalement change de jour. Un coach déplace une séance
-///    vers un autre jour en la maintenant appuyée puis en la glissant sur la pastille du jour.
-///  * Tablette : 7 colonnes. Même geste, directement d'une colonne à l'autre.
+///    vers un autre jour en la maintenant appuyée puis en la glissant sur la pastille du jour,
+///    ou la supprime en la glissant vers la gauche (confirmation demandée).
+///  * Tablette : 7 colonnes. Mêmes gestes, directement d'une colonne à l'autre.
 class WeekScreen extends ConsumerStatefulWidget {
   const WeekScreen({super.key});
 
@@ -55,6 +56,9 @@ class _WeekScreenState extends ConsumerState<WeekScreen> {
       if (s.date == iso) return;
       guarded(context, () => ref.read(sessionActionsProvider).move(s.id, iso));
     }
+
+    void deleteSession(PlannedSession s) =>
+        guarded(context, () => ref.read(sessionActionsProvider).delete(s.id));
 
     return LayoutBuilder(builder: (context, constraints) {
       final wide = constraints.maxWidth >= weekColumnsMinWidth;
@@ -130,6 +134,7 @@ class _WeekScreenState extends ConsumerState<WeekScreen> {
                       isCoach: isCoach,
                       onOpen: open,
                       onAdd: (d) => startNewSession(context, date: d, groupId: _groupFilter),
+                      onDelete: deleteSession,
                     )
                   : GestureDetector(
                       behavior: HitTestBehavior.translucent,
@@ -145,6 +150,7 @@ class _WeekScreenState extends ConsumerState<WeekScreen> {
                         isCoach: isCoach,
                         onOpen: open,
                         onAdd: () => startNewSession(context, date: _selected, groupId: _groupFilter),
+                        onDelete: deleteSession,
                       ),
                     ),
             ),
@@ -154,6 +160,33 @@ class _WeekScreenState extends ConsumerState<WeekScreen> {
     });
   }
 }
+
+/// Confirmation avant suppression depuis la vue semaine (glisser une carte vers la gauche).
+Future<bool> _confirmDeleteSession(BuildContext context, String title) async {
+  final ok = await showDialog<bool>(
+    context: context,
+    builder: (ctx) => AlertDialog(
+      title: const Text('Supprimer la séance ?'),
+      content: Text('« $title » sera supprimée pour tout le monde.'),
+      actions: [
+        TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Annuler')),
+        TextButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Supprimer')),
+      ],
+    ),
+  );
+  return ok == true;
+}
+
+Widget _deleteBackground(ThemeData theme) => Container(
+      alignment: Alignment.centerRight,
+      padding: const EdgeInsets.symmetric(horizontal: 20),
+      margin: const EdgeInsets.symmetric(vertical: 0),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.errorContainer,
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: Icon(Icons.delete_outline, color: theme.colorScheme.onErrorContainer),
+    );
 
 class _FilterChip extends StatelessWidget {
   const _FilterChip({required this.label, required this.selected, required this.onTap});
@@ -292,6 +325,7 @@ class _DayAgenda extends StatelessWidget {
     required this.isCoach,
     required this.onOpen,
     required this.onAdd,
+    required this.onDelete,
   });
 
   final DateTime day;
@@ -301,6 +335,7 @@ class _DayAgenda extends StatelessWidget {
   final bool isCoach;
   final ValueChanged<PlannedSession> onOpen;
   final VoidCallback onAdd;
+  final ValueChanged<PlannedSession> onDelete;
 
   @override
   Widget build(BuildContext context) {
@@ -339,12 +374,12 @@ class _DayAgenda extends StatelessWidget {
       separatorBuilder: (_, _) => const SizedBox(height: 10),
       itemBuilder: (context, i) {
         if (i == 0) return Text(longDayLabel(day), style: theme.textTheme.titleMedium);
-        return _card(sessions[i - 1]);
+        return _card(context, sessions[i - 1]);
       },
     );
   }
 
-  Widget _card(PlannedSession s) {
+  Widget _card(BuildContext context, PlannedSession s) {
     final child = SessionCard(
       session: s,
       type: types[s.typeId],
@@ -352,7 +387,7 @@ class _DayAgenda extends StatelessWidget {
       onTap: () => onOpen(s),
     );
     if (!isCoach) return child;
-    return LongPressDraggable<PlannedSession>(
+    final draggable = LongPressDraggable<PlannedSession>(
       key: Key('drag-${s.id}'),
       data: s,
       feedback: Material(
@@ -365,6 +400,14 @@ class _DayAgenda extends StatelessWidget {
       ),
       childWhenDragging: Opacity(opacity: 0.35, child: child),
       child: child,
+    );
+    return Dismissible(
+      key: Key('dismiss-${s.id}'),
+      direction: DismissDirection.endToStart,
+      background: _deleteBackground(Theme.of(context)),
+      confirmDismiss: (_) => _confirmDeleteSession(context, s.title),
+      onDismissed: (_) => onDelete(s),
+      child: draggable,
     );
   }
 }
@@ -381,6 +424,7 @@ class _WeekColumns extends ConsumerWidget {
     required this.isCoach,
     required this.onOpen,
     required this.onAdd,
+    required this.onDelete,
   });
 
   final DateTime monday;
@@ -391,6 +435,7 @@ class _WeekColumns extends ConsumerWidget {
   final bool isCoach;
   final ValueChanged<PlannedSession> onOpen;
   final ValueChanged<DateTime> onAdd;
+  final ValueChanged<PlannedSession> onDelete;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -414,6 +459,7 @@ class _WeekColumns extends ConsumerWidget {
                   context,
                   () => ref.read(sessionActionsProvider).move(s.id, isoDate(addDays(monday, i))),
                 ),
+                onDelete: onDelete,
               ),
             ),
         ],
@@ -433,6 +479,7 @@ class _DayColumn extends StatelessWidget {
     required this.onOpen,
     required this.onAdd,
     required this.onDrop,
+    required this.onDelete,
   });
 
   final DateTime day;
@@ -444,6 +491,7 @@ class _DayColumn extends StatelessWidget {
   final ValueChanged<PlannedSession> onOpen;
   final VoidCallback onAdd;
   final ValueChanged<PlannedSession> onDrop;
+  final ValueChanged<PlannedSession> onDelete;
 
   @override
   Widget build(BuildContext context) {
@@ -459,7 +507,7 @@ class _DayColumn extends StatelessWidget {
         onTap: () => onOpen(s),
       );
       if (!isCoach) return child;
-      return LongPressDraggable<PlannedSession>(
+      final draggable = LongPressDraggable<PlannedSession>(
         key: Key('drag-${s.id}'),
         data: s,
         feedback: Material(
@@ -472,6 +520,14 @@ class _DayColumn extends StatelessWidget {
         ),
         childWhenDragging: Opacity(opacity: 0.35, child: child),
         child: child,
+      );
+      return Dismissible(
+        key: Key('dismiss-${s.id}'),
+        direction: DismissDirection.endToStart,
+        background: _deleteBackground(theme),
+        confirmDismiss: (_) => _confirmDeleteSession(context, s.title),
+        onDismissed: (_) => onDelete(s),
+        child: draggable,
       );
     }
 

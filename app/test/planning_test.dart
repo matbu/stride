@@ -466,6 +466,46 @@ void main() {
       expect(fake.moved, isEmpty);
     });
 
+    testWidgets('téléphone : glisser une séance vers la gauche propose de la supprimer', (tester) async {
+      tester.view.physicalSize = const Size(400, 800);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+      final fake = FakeSessions();
+      await tester.pumpWidget(testApp(
+        const WeekScreen(),
+        overrides: clubOverrides(sessions: [session('s1', isoDate(today), 'À supprimer')], sessionActions: fake),
+      ));
+      await tester.pumpAndSettle();
+
+      await tester.drag(find.text('À supprimer'), const Offset(-500, 0));
+      await tester.pump();
+      expect(find.text('Supprimer la séance ?'), findsOneWidget);
+      await tester.tap(find.widgetWithText(TextButton, 'Supprimer'));
+      await tester.pumpAndSettle();
+
+      expect(fake.deleted, ['s1']);
+    });
+
+    testWidgets('téléphone : annuler la suppression garde la séance', (tester) async {
+      tester.view.physicalSize = const Size(400, 800);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+      final fake = FakeSessions();
+      await tester.pumpWidget(testApp(
+        const WeekScreen(),
+        overrides: clubOverrides(sessions: [session('s1', isoDate(today), 'Reste')], sessionActions: fake),
+      ));
+      await tester.pumpAndSettle();
+
+      await tester.drag(find.text('Reste'), const Offset(-500, 0));
+      await tester.pump();
+      await tester.tap(find.widgetWithText(TextButton, 'Annuler'));
+      await tester.pumpAndSettle();
+
+      expect(fake.deleted, isEmpty);
+      expect(find.text('Reste'), findsOneWidget);
+    });
+
     testWidgets('tablette : un athlète ne peut ni ajouter ni déplacer', (tester) async {
       tester.view.physicalSize = const Size(1400, 900);
       tester.view.devicePixelRatio = 1;
