@@ -198,6 +198,30 @@ fails("un athlète n'inscrit pas un autre athlète", lea, "insert into public.gr
 check("un athlète ne voit que sa fiche", count(lea, "athletes") == 1)
 check("un coach voit toutes les fiches", count(marc, "athletes") == 4)
 
+print("profil athlète")
+run(lea, "insert into public.athlete_profiles (id, bio, ffa_url) values (%s, 'Coureuse de fond', 'https://www.athle.fr/athletes/95743/records')", (lea_ath,))
+check("club_id/user_id remplis par trigger sur le profil",
+      su("select club_id, user_id from public.athlete_profiles where id=%s", (lea_ath,)) == [(club, lea)])
+fails("un athlète ne crée pas le profil d'un autre", lea, "insert into public.athlete_profiles (id, bio) values (%s, 'piraté')", (tom_ath,), "row-level security")
+check("un coach voit le profil d'un athlète", count(marc, "athlete_profiles") == 1)
+check("un autre athlète ne voit pas ce profil", count(tom, "athlete_profiles") == 0)
+run(marc, "update public.athlete_profiles set bio = 'piraté' where id = %s", (lea_ath,))
+check("un coach ne modifie pas le profil d'un athlète", su("select bio from public.athlete_profiles where id=%s", (lea_ath,))[0][0] == "Coureuse de fond")
+run(lea, "update public.athlete_profiles set bio = 'Coureuse de fond et de trail' where id = %s", (lea_ath,))
+check("un athlète modifie son propre profil", su("select bio from public.athlete_profiles where id=%s", (lea_ath,))[0][0] == "Coureuse de fond et de trail")
+
+rec = str(uuid.uuid4())
+run(lea, "insert into public.athlete_records (id, athlete_id, discipline, performance) values (%s, %s, '10 km', '38:12')", (rec, lea_ath))
+check("club_id/user_id remplis par trigger sur le record",
+      su("select club_id, user_id from public.athlete_records where id=%s", (rec,)) == [(club, lea)])
+fails("un athlète n'ajoute pas de record pour un autre", lea, "insert into public.athlete_records (athlete_id, discipline, performance) values (%s, '100 m', '13.0')", (tom_ath,), "row-level security")
+check("un coach voit les records d'un athlète", count(marc, "athlete_records") == 1)
+check("un autre athlète ne voit pas ces records", count(tom, "athlete_records") == 0)
+run(marc, "delete from public.athlete_records where id = %s", (rec,))
+check("un coach ne supprime pas un record", len(su("select 1 from public.athlete_records where id=%s", (rec,))) == 1)
+run(lea, "delete from public.athlete_records where id = %s", (rec,))
+check("un athlète supprime son propre record", len(su("select 1 from public.athlete_records where id=%s", (rec,))) == 0)
+
 print("séances")
 type_id = su("select id from public.session_types where club_id=%s and name='Fractionné'", (club,))[0][0]
 tpl, planned, blk_t, blk_p = (str(uuid.uuid4()) for _ in range(4))

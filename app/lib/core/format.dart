@@ -26,6 +26,9 @@ String _capitalize(String s) =>
 String longDayLabel(DateTime d) =>
     _capitalize(DateFormat('EEEE d MMMM', 'fr').format(d));
 
+/// « 12 mai 2026 » — date d'un record personnel.
+String mediumDate(DateTime d) => DateFormat('d MMM yyyy', 'fr').format(d);
+
 /// « Septembre 2026 ».
 String monthLabel(DateTime firstOfMonth) => _capitalize(DateFormat('MMMM yyyy', 'fr').format(firstOfMonth));
 

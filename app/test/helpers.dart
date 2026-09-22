@@ -10,6 +10,7 @@ import 'package:coach/data/actions.dart';
 import 'package:coach/data/database.dart';
 import 'package:coach/data/drafts.dart';
 import 'package:coach/data/models.dart';
+import 'package:coach/data/profile_actions.dart';
 import 'package:coach/data/queries.dart';
 import 'package:coach/data/session_actions.dart';
 
@@ -123,6 +124,49 @@ class FakeClubActions extends Fake implements ClubActions {
   Future<void> requestJoin(String clubId, ClubRole role) async => joinRequests.add((clubId, role));
 }
 
+class FakeProfileActions extends Fake implements ProfileActions {
+  final savedProfiles = <(String athleteId, String bio, String? ffaUrl)>[];
+  final savedRecords = <AthleteRecord>[];
+  final deletedRecords = <String>[];
+
+  @override
+  Future<void> saveProfile({
+    required String athleteId,
+    required String clubId,
+    String? bio,
+    String? ffaUrl,
+  }) async {
+    final url = ffaUrl?.trim();
+    savedProfiles.add((athleteId, bio?.trim() ?? '', (url == null || url.isEmpty) ? null : url));
+  }
+
+  @override
+  Future<void> saveRecord({
+    String? id,
+    required String athleteId,
+    required String clubId,
+    required String discipline,
+    required String performance,
+    String? achievedOn,
+    String? competition,
+  }) async {
+    savedRecords.add(AthleteRecord(
+      id: id ?? 'r${savedRecords.length + 1}',
+      athleteId: athleteId,
+      discipline: discipline.trim(),
+      performance: performance.trim(),
+      achievedOn: achievedOn,
+      competition: competition?.trim() ?? '',
+    ));
+  }
+
+  @override
+  Future<void> deleteRecord(String id) async => deletedRecords.add(id);
+
+  @override
+  String avatarUrl(String path) => 'https://example.test/$path';
+}
+
 const seuil = SessionType(id: 't-seuil', name: 'Seuil / Tempo', color: Color(0xFFF5A524), icon: 'speed');
 
 List<Override> clubOverrides({
@@ -138,6 +182,9 @@ List<Override> clubOverrides({
   List<Athlete> athletes = const [],
   Map<String, Set<String>> links = const {},
   FakeClubActions? clubActions,
+  Map<String, AthleteProfile> athleteProfiles = const {},
+  Map<String, List<AthleteRecord>> athleteRecords = const {},
+  FakeProfileActions? profileActions,
 }) {
   final m = me ?? membership();
   return [
@@ -156,5 +203,8 @@ List<Override> clubOverrides({
     planningActionsProvider.overrideWithValue(planning ?? FakePlanning()),
     sessionActionsProvider.overrideWithValue(sessionActions ?? FakeSessions()),
     if (clubActions != null) clubActionsProvider.overrideWithValue(clubActions),
+    athleteProfileProvider.overrideWith((ref, id) => Stream.value(athleteProfiles[id])),
+    athleteRecordsProvider.overrideWith((ref, id) => Stream.value(athleteRecords[id] ?? const [])),
+    profileActionsProvider.overrideWithValue(profileActions ?? FakeProfileActions()),
   ];
 }

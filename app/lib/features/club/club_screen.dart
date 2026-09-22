@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:url_launcher/url_launcher.dart';
 
+import '../../core/format.dart';
 import '../../data/actions.dart';
 import '../../data/models.dart';
+import '../../data/profile_actions.dart';
 import '../../data/queries.dart';
 import '../common.dart';
 import 'invite_dialog.dart';
@@ -463,6 +466,7 @@ class _AthleteSheet extends ConsumerWidget {
                 ),
             ],
           ),
+          if (athlete.hasAccount) _AthleteProfilePreview(athleteId: athlete.id),
           if (!athlete.hasAccount) ...[
             const SizedBox(height: 24),
             OutlinedButton.icon(
@@ -493,6 +497,68 @@ class _AthleteSheet extends ConsumerWidget {
           ],
         ],
       ),
+    );
+  }
+}
+
+/// Ce qu'un coach voit du profil d'un athlète : lecture seule (l'athlète est seul à l'éditer).
+class _AthleteProfilePreview extends ConsumerWidget {
+  const _AthleteProfilePreview({required this.athleteId});
+  final String athleteId;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final theme = Theme.of(context);
+    final profile = ref.watch(athleteProfileProvider(athleteId)).value;
+    final records = ref.watch(athleteRecordsProvider(athleteId)).value ?? const <AthleteRecord>[];
+    if (profile == null && records.isEmpty) return const SizedBox.shrink();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const SizedBox(height: 20),
+        Row(
+          children: [
+            CircleAvatar(
+              radius: 24,
+              backgroundImage: profile?.avatarPath == null
+                  ? null
+                  : NetworkImage(ref.read(profileActionsProvider).avatarUrl(profile!.avatarPath!)),
+              child: profile?.avatarPath == null ? const Icon(Icons.person) : null,
+            ),
+            if ((profile?.ffaUrl ?? '').isNotEmpty) ...[
+              const Spacer(),
+              OutlinedButton.icon(
+                icon: const Icon(Icons.open_in_new, size: 16),
+                label: const Text('Fiche FFA'),
+                onPressed: () async {
+                  final raw = profile!.ffaUrl!.trim();
+                  final uri = Uri.tryParse(raw.startsWith('http') ? raw : 'https://$raw');
+                  if (uri != null) await launchUrl(uri, mode: LaunchMode.externalApplication);
+                },
+              ),
+            ],
+          ],
+        ),
+        if ((profile?.bio ?? '').isNotEmpty) ...[
+          const SizedBox(height: 8),
+          Text(profile!.bio, style: theme.textTheme.bodyMedium),
+        ],
+        if (records.isNotEmpty) ...[
+          const SizedBox(height: 12),
+          Text('Records personnels', style: theme.textTheme.labelLarge),
+          const SizedBox(height: 4),
+          for (final r in records)
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 2),
+              child: Text(
+                '${r.discipline} — ${r.performance}'
+                '${r.achievedOn == null ? '' : ' · ${mediumDate(parseIsoDate(r.achievedOn!))}'}',
+                style: theme.textTheme.bodyMedium,
+              ),
+            ),
+        ],
+      ],
     );
   }
 }

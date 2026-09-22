@@ -112,6 +112,27 @@ final myAthleteProvider = Provider<Athlete?>((ref) {
   return athletes.where((a) => a.userId == uid).firstOrNull;
 });
 
+/// Profil (photo, bio, lien FFA) d'un athlète — soit le sien, soit celui consulté par un coach.
+final athleteProfileProvider = StreamProvider.family<AthleteProfile?, String>((ref, athleteId) {
+  return _query(
+    ref,
+    'SELECT * FROM athlete_profiles WHERE id = ?',
+    [athleteId],
+    AthleteProfile.fromRow,
+  ).map((l) => l.firstOrNull);
+});
+
+/// Records personnels d'un athlète, les plus récents d'abord.
+final athleteRecordsProvider = StreamProvider.family<List<AthleteRecord>, String>((ref, athleteId) {
+  return _query(
+    ref,
+    'SELECT * FROM athlete_records WHERE athlete_id = ? '
+    'ORDER BY achieved_on IS NULL, achieved_on DESC, discipline',
+    [athleteId],
+    AthleteRecord.fromRow,
+  );
+});
+
 /// athlete_id → ensemble des groupes. Un coach reçoit tous les liens du club, un athlète
 /// uniquement les siens (règles de sync).
 final groupLinksProvider = StreamProvider<Map<String, Set<String>>>((ref) {

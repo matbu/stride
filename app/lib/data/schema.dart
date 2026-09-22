@@ -32,6 +32,23 @@ const schema = Schema([
     Column.text('athlete_id'),
     Column.text('user_id'),
   ]),
+  // `id` EST l'id de l'athlète (voir la migration `athlete_profile`).
+  Table('athlete_profiles', [
+    Column.text('club_id'),
+    Column.text('user_id'),
+    Column.text('bio'),
+    Column.text('avatar_path'),
+    Column.text('ffa_url'),
+  ]),
+  Table('athlete_records', [
+    Column.text('club_id'),
+    Column.text('user_id'),
+    Column.text('athlete_id'),
+    Column.text('discipline'),
+    Column.text('performance'),
+    Column.text('achieved_on'),
+    Column.text('competition'),
+  ]),
   Table('invitations', [
     Column.text('club_id'),
     Column.text('code'),

@@ -134,6 +134,27 @@ void main() {
       expect(find.text('Compte lié · 1 groupe'), findsOneWidget);
       expect(find.text('Pas encore de compte · 2 groupes'), findsOneWidget);
     });
+
+    testWidgets('un coach voit en lecture seule le profil d’un athlète lié', (tester) async {
+      const lea = Athlete(id: 'a1', fullName: 'Léa Martin', userId: 'u3');
+      const record = AthleteRecord(id: 'r1', athleteId: 'a1', discipline: '10 km', performance: '38:12');
+      final overrides = clubOverrides(
+        athletes: const [lea],
+        athleteProfiles: {'a1': const AthleteProfile(athleteId: 'a1', bio: 'Toujours partante pour un footing.')},
+        athleteRecords: {
+          'a1': [record],
+        },
+      );
+      await tester.pumpWidget(testApp(const ClubScreen(), overrides: overrides));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Léa Martin'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Toujours partante pour un footing.'), findsOneWidget);
+      expect(find.text('10 km — 38:12'), findsOneWidget);
+      expect(find.byIcon(Icons.delete_outline), findsNothing, reason: 'lecture seule pour le coach');
+    });
   });
 
   group('rejoindre un club : recherche', () {
@@ -196,9 +217,90 @@ void main() {
       await tester.pumpWidget(testApp(const ProfileScreen(), overrides: overrides));
       await tester.pumpAndSettle();
 
+      // Le champ description a lui-même un Scrollable interne : on précise lequel faire défiler.
+      await tester.scrollUntilVisible(
+        find.byKey(const Key('my-group-Demi-fond')),
+        300,
+        scrollable: find.byType(Scrollable).first,
+      );
       await tester.tap(find.byKey(const Key('my-group-Demi-fond')));
       await tester.tap(find.byKey(const Key('my-group-Sprint')));
       expect(planning.groupToggles, [(demiGroup.id, true), (sprintGroup.id, false)]);
+    });
+
+    testWidgets('modifier la description et le lien FFA les enregistre', (tester) async {
+      const me = Athlete(id: 'a1', fullName: 'Léa', userId: 'u-julie');
+      final fake = FakeProfileActions();
+      final overrides = clubOverrides(
+        me: membership(role: ClubRole.athlete),
+        athletes: const [me],
+        profileActions: fake,
+      );
+      await tester.pumpWidget(testApp(const ProfileScreen(), overrides: overrides));
+      await tester.pumpAndSettle();
+
+      await tester.enterText(find.byKey(const Key('bio-field')), 'Coureuse de fond, sourire garanti.');
+      await tester.enterText(find.byKey(const Key('ffa-field')), 'www.athle.fr/athletes/95743/records');
+      await tester.tap(find.byKey(const Key('save-profile')));
+      await tester.pumpAndSettle();
+
+      expect(fake.savedProfiles, [
+        ('a1', 'Coureuse de fond, sourire garanti.', 'www.athle.fr/athletes/95743/records'),
+      ]);
+    });
+
+    testWidgets('ajouter un record personnel', (tester) async {
+      const me = Athlete(id: 'a1', fullName: 'Léa', userId: 'u-julie');
+      final fake = FakeProfileActions();
+      final overrides = clubOverrides(
+        me: membership(role: ClubRole.athlete),
+        athletes: const [me],
+        profileActions: fake,
+      );
+      await tester.pumpWidget(testApp(const ProfileScreen(), overrides: overrides));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byKey(const Key('add-record')));
+      await tester.pumpAndSettle();
+      await tester.enterText(find.byKey(const Key('record-discipline')), '10 km');
+      await tester.pump();
+      await tester.enterText(find.byKey(const Key('record-performance')), '38:12');
+      await tester.pump();
+      await tester.tap(find.byKey(const Key('record-save')));
+      await tester.pumpAndSettle();
+
+      expect(fake.savedRecords, hasLength(1));
+      expect(fake.savedRecords.single.discipline, '10 km');
+      expect(fake.savedRecords.single.performance, '38:12');
+      expect(find.byKey(const Key('record-discipline')), findsNothing, reason: 'la feuille se ferme après l’ajout');
+    });
+
+    testWidgets('supprimer un record demande confirmation', (tester) async {
+      const me = Athlete(id: 'a1', fullName: 'Léa', userId: 'u-julie');
+      const record = AthleteRecord(id: 'r1', athleteId: 'a1', discipline: '100 m', performance: '13.1');
+      final fake = FakeProfileActions();
+      final overrides = clubOverrides(
+        me: membership(role: ClubRole.athlete),
+        athletes: const [me],
+        athleteRecords: {
+          'a1': [record],
+        },
+        profileActions: fake,
+      );
+      await tester.pumpWidget(testApp(const ProfileScreen(), overrides: overrides));
+      await tester.pumpAndSettle();
+
+      await tester.scrollUntilVisible(
+        find.text('100 m — 13.1'),
+        300,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.tap(find.byIcon(Icons.delete_outline).first);
+      await tester.pumpAndSettle();
+      await tester.tap(find.widgetWithText(TextButton, 'Supprimer'));
+      await tester.pumpAndSettle();
+
+      expect(fake.deletedRecords, ['r1']);
     });
   });
 

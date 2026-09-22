@@ -78,6 +78,49 @@ class Athlete {
   bool get hasAccount => userId != null;
 }
 
+/// Profil en libre-service d'un athlète : `id` est celui de l'`Athlete` (table d'extension 1:1).
+class AthleteProfile {
+  const AthleteProfile({required this.athleteId, this.bio = '', this.avatarPath, this.ffaUrl});
+  factory AthleteProfile.fromRow(DbRow r) => AthleteProfile(
+        athleteId: r['id'] as String,
+        bio: (r['bio'] as String?) ?? '',
+        avatarPath: r['avatar_path'] as String?,
+        ffaUrl: r['ffa_url'] as String?,
+      );
+  final String athleteId;
+  final String bio;
+  final String? avatarPath;
+  final String? ffaUrl;
+}
+
+/// Record personnel (entraînement ou compétition non officielle) — différent des records FFA.
+/// `performance` est du texte libre : les unités varient trop selon la discipline pour trier.
+class AthleteRecord {
+  const AthleteRecord({
+    required this.id,
+    required this.athleteId,
+    required this.discipline,
+    required this.performance,
+    this.achievedOn,
+    this.competition = '',
+  });
+  factory AthleteRecord.fromRow(DbRow r) => AthleteRecord(
+        id: r['id'] as String,
+        athleteId: r['athlete_id'] as String,
+        discipline: r['discipline'] as String,
+        performance: r['performance'] as String,
+        achievedOn: r['achieved_on'] as String?,
+        competition: (r['competition'] as String?) ?? '',
+      );
+  final String id;
+  final String athleteId;
+  final String discipline;
+  final String performance;
+  /// `yyyy-MM-dd`, ou null si non précisée.
+  final String? achievedOn;
+  final String competition;
+}
+
 class SessionType {
   const SessionType({
     required this.id,
