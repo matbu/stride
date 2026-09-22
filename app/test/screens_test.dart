@@ -8,6 +8,7 @@ import 'package:coach/data/models.dart';
 import 'package:coach/features/auth/auth_screen.dart';
 import 'package:coach/features/club/club_screen.dart';
 import 'package:coach/features/club/profile_screen.dart';
+import 'package:coach/features/onboarding/join_club_screen.dart';
 import 'package:coach/features/onboarding/onboarding_screen.dart';
 import 'package:coach/features/planning/week_screen.dart';
 
@@ -132,6 +133,53 @@ void main() {
       expect(find.text('1 athlète'), findsOneWidget, reason: 'Demi-fond compte Tom seul');
       expect(find.text('Compte lié · 1 groupe'), findsOneWidget);
       expect(find.text('Pas encore de compte · 2 groupes'), findsOneWidget);
+    });
+  });
+
+  group('rejoindre un club : recherche', () {
+    Future<void> openSearchTab(WidgetTester tester, FakeClubActions fake) async {
+      await tester.pumpWidget(testApp(const JoinClubScreen(), overrides: clubOverrides(clubActions: fake)));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Chercher un club'));
+      await tester.pumpAndSettle();
+    }
+
+    testWidgets('moins de 2 caractères : pas de recherche', (tester) async {
+      final fake = FakeClubActions();
+      await openSearchTab(tester, fake);
+
+      await tester.enterText(find.byKey(const Key('club-search')), 's');
+      await tester.pump(const Duration(milliseconds: 400));
+      expect(fake.searchedQueries, isEmpty);
+    });
+
+    testWidgets('dès 2 caractères : recherche en direct et affiche les résultats', (tester) async {
+      final fake = FakeClubActions()..searchResults = const [Club(id: 'c1', name: 'Senlis Athlé')];
+      await openSearchTab(tester, fake);
+
+      await tester.enterText(find.byKey(const Key('club-search')), 'se');
+      await tester.pump(const Duration(milliseconds: 400));
+      await tester.pumpAndSettle();
+
+      expect(fake.searchedQueries, ['se']);
+      expect(find.text('Senlis Athlé'), findsOneWidget);
+    });
+
+    testWidgets('toucher un club affiche le choix de rôle, puis envoie la demande', (tester) async {
+      final fake = FakeClubActions()..searchResults = const [Club(id: 'c1', name: 'Senlis Athlé')];
+      await openSearchTab(tester, fake);
+
+      await tester.enterText(find.byKey(const Key('club-search')), 'senlis');
+      await tester.pump(const Duration(milliseconds: 400));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Senlis Athlé'));
+      await tester.pumpAndSettle();
+      expect(find.text('Je rejoins en tant que…'), findsOneWidget);
+
+      await tester.tap(find.byKey(const Key('join-request')));
+      await tester.pumpAndSettle();
+      expect(fake.joinRequests, [('c1', ClubRole.athlete)]);
     });
   });
 

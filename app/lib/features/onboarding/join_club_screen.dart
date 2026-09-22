@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -150,32 +152,44 @@ class _SearchTab extends ConsumerStatefulWidget {
 
 class _SearchTabState extends ConsumerState<_SearchTab> {
   final _query = TextEditingController();
-  Club? _found;
-  bool _searched = false;
+  Timer? _debounce;
+  List<Club>? _results; // null : pas encore cherché (ou moins de 2 caractères)
+  bool _searching = false;
+  Club? _selected;
   bool _busy = false;
   ClubRole _role = ClubRole.athlete;
 
   @override
   void dispose() {
+    _debounce?.cancel();
     _query.dispose();
     super.dispose();
   }
 
-  Future<void> _search() async {
-    if (_query.text.trim().isEmpty) return;
-    setState(() => _busy = true);
-    final club = await guarded(context, () => ref.read(clubActionsProvider).findClub(_query.text));
+  void _onChanged(String text) {
+    setState(() => _selected = null);
+    _debounce?.cancel();
+    final q = text.trim();
+    if (q.length < 2) {
+      setState(() => _results = null);
+      return;
+    }
+    _debounce = Timer(const Duration(milliseconds: 300), () => _search(q));
+  }
+
+  Future<void> _search(String q) async {
+    setState(() => _searching = true);
+    final results = await guarded(context, () => ref.read(clubActionsProvider).searchClubs(q));
     if (!mounted) return;
     setState(() {
-      _busy = false;
-      _found = club;
-      _searched = true;
+      _searching = false;
+      _results = results ?? [];
     });
   }
 
   Future<void> _request() async {
     setState(() => _busy = true);
-    await guarded(context, () => ref.read(clubActionsProvider).requestJoin(_found!.id, _role));
+    await guarded(context, () => ref.read(clubActionsProvider).requestJoin(_selected!.id, _role));
     // Succès : la demande arrive par la synchronisation et le routeur ouvre l'écran d'attente.
     if (mounted) setState(() => _busy = false);
   }
@@ -183,11 +197,12 @@ class _SearchTabState extends ConsumerState<_SearchTab> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final selected = _selected;
     return ListView(
       padding: const EdgeInsets.all(20),
       children: [
         Text(
-          'Saisis le nom exact du club. Les coachs recevront ta demande et devront la valider.',
+          'Cherche ton club par son nom. Les coachs recevront ta demande et devront la valider.',
           style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant),
         ),
         const SizedBox(height: 20),
@@ -198,26 +213,55 @@ class _SearchTabState extends ConsumerState<_SearchTab> {
           textInputAction: TextInputAction.search,
           decoration: InputDecoration(
             labelText: 'Nom du club',
-            suffixIcon: IconButton(icon: const Icon(Icons.search), onPressed: _busy ? null : _search),
+            helperText: 'Au moins 2 lettres.',
+            prefixIcon: const Icon(Icons.search),
+            suffixIcon: _searching
+                ? const Padding(
+                    padding: EdgeInsets.all(12),
+                    child: SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2)),
+                  )
+                : null,
           ),
-          onChanged: (_) => setState(() {
-            _found = null;
-            _searched = false;
-          }),
-          onSubmitted: (_) => _search(),
+          onChanged: _onChanged,
+          onSubmitted: (t) {
+            _debounce?.cancel();
+            final q = t.trim();
+            if (q.length >= 2) _search(q);
+          },
         ),
-        const SizedBox(height: 16),
-        if (_searched && _found == null)
-          const Text('Aucun club avec ce nom. Vérifie l’orthographe.'),
-        if (_found != null) ...[
+        const SizedBox(height: 8),
+        if (selected == null) ...[
+          if (_results != null && _results!.isEmpty)
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: 12),
+              child: Text('Aucun club trouvé.'),
+            ),
+          for (final c in _results ?? const <Club>[])
+            Card(
+              margin: const EdgeInsets.only(bottom: 8),
+              child: ListTile(
+                title: Text(c.name),
+                trailing: const Icon(Icons.chevron_right),
+                onTap: () => setState(() => _selected = c),
+              ),
+            ),
+        ] else ...[
           Card(
             child: Padding(
               padding: const EdgeInsets.all(16),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(_found!.name, style: theme.textTheme.titleLarge),
-                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      Expanded(child: Text(selected.name, style: theme.textTheme.titleLarge)),
+                      TextButton(
+                        onPressed: _busy ? null : () => setState(() => _selected = null),
+                        child: const Text('Changer'),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
                   const Text('Je rejoins en tant que…'),
                   const SizedBox(height: 8),
                   SegmentedButton<ClubRole>(

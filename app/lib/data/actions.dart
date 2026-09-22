@@ -35,11 +35,14 @@ class ClubActions {
   Future<String> createClub(String name) async =>
       await _client.rpc('create_club', params: {'p_name': name}) as String;
 
-  Future<Club?> findClub(String name) async {
-    final rows = await _client.rpc('find_club', params: {'p_name': name}) as List<dynamic>;
-    if (rows.isEmpty) return null;
-    final r = rows.first as Map<String, dynamic>;
-    return Club(id: r['id'] as String, name: r['name'] as String);
+  /// Recherche « live » : sous-chaîne, insensible à la casse, jusqu'à 20 clubs (voir la
+  /// migration `search_clubs` — moins de 2 caractères renvoie toujours une liste vide).
+  Future<List<Club>> searchClubs(String query) async {
+    final rows = await _client.rpc('search_clubs', params: {'p_query': query}) as List<dynamic>;
+    return [
+      for (final r in rows.cast<Map<String, dynamic>>())
+        Club(id: r['id'] as String, name: r['name'] as String),
+    ];
   }
 
   Future<void> requestJoin(String clubId, ClubRole role) =>

@@ -116,8 +116,14 @@ check("create_club renvoie un id", club is not None)
 fails("nom de club unique, insensible à la casse", zoe, "select public.create_club(%s)", ("ac TEST",), "club_name_taken")
 check("9 types de séance par défaut", count(julie, "session_types", "club_id = %s", (club,)) == 9)
 check("julie est owner", su("select role from public.memberships where user_id=%s", (julie,))[0][0] == "owner")
-check("find_club insensible à la casse", len(run(lea, "select * from public.find_club(%s)", ("  ac test ",))) == 1)
-check("find_club n'expose pas de club au hasard", len(run(lea, "select * from public.find_club(%s)", ("ac",))) == 0)
+check(
+    "search_clubs insensible à la casse et par sous-chaîne",
+    len(run(lea, "select * from public.search_clubs(%s)", ("  aC te ",))) == 1,
+)
+check(
+    "search_clubs : moins de 2 caractères ne renvoie rien (pas de balayage lettre par lettre)",
+    len(run(lea, "select * from public.search_clubs(%s)", ("a",))) == 0,
+)
 
 # Léa demande à rejoindre comme athlète : en attente, elle ne voit rien du club.
 run(lea, "select public.request_join(%s, 'athlete')", (club,))

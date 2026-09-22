@@ -106,8 +106,21 @@ class FakeSessions extends Fake implements SessionActions {
 
 class FakeClubActions extends Fake implements ClubActions {
   final approved = <String>[];
+  List<Club> searchResults = const [];
+  final searchedQueries = <String>[];
+  final joinRequests = <(String, ClubRole)>[];
+
   @override
   Future<void> approve(String membershipId) async => approved.add(membershipId);
+
+  @override
+  Future<List<Club>> searchClubs(String query) async {
+    searchedQueries.add(query);
+    return searchResults;
+  }
+
+  @override
+  Future<void> requestJoin(String clubId, ClubRole role) async => joinRequests.add((clubId, role));
 }
 
 const seuil = SessionType(id: 't-seuil', name: 'Seuil / Tempo', color: Color(0xFFF5A524), icon: 'speed');
