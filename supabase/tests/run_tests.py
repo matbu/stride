@@ -38,7 +38,9 @@ cur = db.cursor()
 
 for name in ["tests/stubs.sql"] + sorted(p.name for p in (ROOT / "migrations").glob("*.sql")):
     path = ROOT / name if name.startswith("tests/") else ROOT / "migrations" / name
-    cur.execute(path.read_text())
+    sql = path.read_text()
+    if sql.strip():  # une migration vide (scaffold jamais rempli) est un no-op côté Postgres aussi
+        cur.execute(sql)
 print("migrations appliquées")
 
 # --- outils ---------------------------------------------------------------------------------
