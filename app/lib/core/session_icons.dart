@@ -11,6 +11,7 @@ const sessionIconKeys = <String, IconData>{
   'dumbbell': Icons.fitness_center,
   'technique': Icons.sports,
   'recovery': Icons.self_improvement,
+  'competition': Icons.emoji_events,
 };
 
 IconData sessionIcon(String key) => sessionIconKeys[key] ?? Icons.circle_outlined;

@@ -99,6 +99,7 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
       ),
       floatingActionButton: FloatingActionButton.extended(
         key: const Key('new-template'),
+        heroTag: 'library-new-template',
         onPressed: () => openSessionEditor(context, newSessionDraft(template: true)),
         icon: const Icon(Icons.add),
         label: const Text('Modèle'),

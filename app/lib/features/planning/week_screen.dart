@@ -14,9 +14,9 @@ const weekColumnsMinWidth = 720.0;
 
 /// Vue semaine.
 ///  * Téléphone : bande des 7 jours (pastilles de couleur par type) et agenda du jour
-///    sélectionné ; glisser horizontalement change de jour.
-///  * Tablette : 7 colonnes. Un coach déplace une séance vers un autre jour en la
-///    maintenant appuyée puis en la glissant.
+///    sélectionné ; glisser horizontalement change de jour. Un coach déplace une séance
+///    vers un autre jour en la maintenant appuyée puis en la glissant sur la pastille du jour.
+///  * Tablette : 7 colonnes. Même geste, directement d'une colonne à l'autre.
 class WeekScreen extends ConsumerStatefulWidget {
   const WeekScreen({super.key});
 
@@ -50,6 +50,12 @@ class _WeekScreenState extends ConsumerState<WeekScreen> {
           groupName: groupNames[s.groupId],
         );
 
+    void moveToDay(PlannedSession s, DateTime day) {
+      final iso = isoDate(day);
+      if (s.date == iso) return;
+      guarded(context, () => ref.read(sessionActionsProvider).move(s.id, iso));
+    }
+
     return LayoutBuilder(builder: (context, constraints) {
       final wide = constraints.maxWidth >= weekColumnsMinWidth;
       return Scaffold(
@@ -76,6 +82,7 @@ class _WeekScreenState extends ConsumerState<WeekScreen> {
         floatingActionButton: isCoach
             ? FloatingActionButton.extended(
                 key: const Key('add-session'),
+                heroTag: 'week-add-session',
                 onPressed: () => startNewSession(context, date: _selected, groupId: _groupFilter),
                 icon: const Icon(Icons.add),
                 label: const Text('Séance'),
@@ -90,7 +97,9 @@ class _WeekScreenState extends ConsumerState<WeekScreen> {
                 today: today,
                 sessions: sessions,
                 types: types,
+                isCoach: isCoach,
                 onSelect: (d) => setState(() => _selected = d),
+                onDrop: moveToDay,
               ),
             if (isCoach && groups.length > 1)
               SizedBox(
@@ -168,7 +177,9 @@ class _DayStrip extends StatelessWidget {
     required this.today,
     required this.sessions,
     required this.types,
+    required this.isCoach,
     required this.onSelect,
+    required this.onDrop,
   });
 
   final DateTime monday;
@@ -176,7 +187,9 @@ class _DayStrip extends StatelessWidget {
   final DateTime today;
   final List<PlannedSession> sessions;
   final Map<String, SessionType> types;
+  final bool isCoach;
   final ValueChanged<DateTime> onSelect;
+  final void Function(PlannedSession session, DateTime day) onDrop;
 
   @override
   Widget build(BuildContext context) {
@@ -194,63 +207,78 @@ class _DayStrip extends StatelessWidget {
   Widget _dayCell(ThemeData theme, DateTime day) {
     final isSelected = day == selected;
     final isToday = day == today;
+    final iso = isoDate(day);
     final colors = <Color>{
       for (final s in sessions)
-        if (s.date == isoDate(day)) (types[s.typeId]?.color ?? theme.colorScheme.outline),
+        if (s.date == iso) (types[s.typeId]?.color ?? theme.colorScheme.outline),
     }.take(4).toList();
 
-    return Semantics(
-      selected: isSelected,
-      label: longDayLabel(day),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(14),
-        onTap: () => onSelect(day),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 6),
-          child: Column(
-            children: [
-              Text(
-                weekdayLetter(day),
-                style: theme.textTheme.labelMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+    return DragTarget<PlannedSession>(
+      onWillAcceptWithDetails: (d) => isCoach && d.data.date != iso,
+      onAcceptWithDetails: (d) => onDrop(d.data, day),
+      builder: (context, candidates, _) {
+        final hovering = candidates.isNotEmpty;
+        return Semantics(
+          selected: isSelected,
+          label: longDayLabel(day),
+          child: InkWell(
+            key: Key('day-strip-$iso'),
+            borderRadius: BorderRadius.circular(14),
+            onTap: () => onSelect(day),
+            child: Container(
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(14),
+                color: hovering ? theme.colorScheme.primaryContainer.withValues(alpha: 0.5) : null,
+                border: hovering ? Border.all(color: theme.colorScheme.primary, width: 2) : null,
               ),
-              const SizedBox(height: 4),
-              Container(
-                width: 38,
-                height: 38,
-                alignment: Alignment.center,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: isSelected ? theme.colorScheme.primary : null,
-                  border: (isToday && !isSelected) ? Border.all(color: theme.colorScheme.primary, width: 1.5) : null,
-                ),
-                child: Text(
-                  '${day.day}',
-                  style: theme.textTheme.titleSmall?.copyWith(
-                    color: isSelected ? theme.colorScheme.onPrimary : null,
-                    fontWeight: (isSelected || isToday) ? FontWeight.w700 : null,
+              padding: const EdgeInsets.symmetric(vertical: 6),
+              child: Column(
+                children: [
+                  Text(
+                    weekdayLetter(day),
+                    style: theme.textTheme.labelMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant),
                   ),
-                ),
-              ),
-              const SizedBox(height: 6),
-              SizedBox(
-                height: 8,
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    for (final c in colors)
-                      Container(
-                        width: 8,
-                        height: 8,
-                        margin: const EdgeInsets.symmetric(horizontal: 1.5),
-                        decoration: BoxDecoration(color: c, shape: BoxShape.circle),
+                  const SizedBox(height: 4),
+                  Container(
+                    width: 38,
+                    height: 38,
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: isSelected ? theme.colorScheme.primary : null,
+                      border:
+                          (isToday && !isSelected) ? Border.all(color: theme.colorScheme.primary, width: 1.5) : null,
+                    ),
+                    child: Text(
+                      '${day.day}',
+                      style: theme.textTheme.titleSmall?.copyWith(
+                        color: isSelected ? theme.colorScheme.onPrimary : null,
+                        fontWeight: (isSelected || isToday) ? FontWeight.w700 : null,
                       ),
-                  ],
-                ),
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  SizedBox(
+                    height: 8,
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        for (final c in colors)
+                          Container(
+                            width: 8,
+                            height: 8,
+                            margin: const EdgeInsets.symmetric(horizontal: 1.5),
+                            decoration: BoxDecoration(color: c, shape: BoxShape.circle),
+                          ),
+                      ],
+                    ),
+                  ),
+                ],
               ),
-            ],
+            ),
           ),
-        ),
-      ),
+        );
+      },
     );
   }
 }
@@ -311,14 +339,32 @@ class _DayAgenda extends StatelessWidget {
       separatorBuilder: (_, _) => const SizedBox(height: 10),
       itemBuilder: (context, i) {
         if (i == 0) return Text(longDayLabel(day), style: theme.textTheme.titleMedium);
-        final s = sessions[i - 1];
-        return SessionCard(
-          session: s,
-          type: types[s.typeId],
-          groupName: groupNames[s.groupId],
-          onTap: () => onOpen(s),
-        );
+        return _card(sessions[i - 1]);
       },
+    );
+  }
+
+  Widget _card(PlannedSession s) {
+    final child = SessionCard(
+      session: s,
+      type: types[s.typeId],
+      groupName: groupNames[s.groupId],
+      onTap: () => onOpen(s),
+    );
+    if (!isCoach) return child;
+    return LongPressDraggable<PlannedSession>(
+      key: Key('drag-${s.id}'),
+      data: s,
+      feedback: Material(
+        color: Colors.transparent,
+        elevation: 6,
+        child: SizedBox(
+          width: 260,
+          child: SessionCard(session: s, type: types[s.typeId], groupName: groupNames[s.groupId], compact: true),
+        ),
+      ),
+      childWhenDragging: Opacity(opacity: 0.35, child: child),
+      child: child,
     );
   }
 }

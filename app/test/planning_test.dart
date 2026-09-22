@@ -422,6 +422,50 @@ void main() {
       expect(fake.moved, isEmpty);
     });
 
+    testWidgets('téléphone : glisser une séance sur un autre jour la déplace', (tester) async {
+      tester.view.physicalSize = const Size(400, 800);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+      final fake = FakeSessions();
+      final target = addDays(today, 1);
+      await tester.pumpWidget(testApp(
+        const WeekScreen(),
+        overrides: clubOverrides(sessions: [session('s1', isoDate(today), 'À déplacer')], sessionActions: fake),
+      ));
+      await tester.pumpAndSettle();
+
+      final gesture = await tester.startGesture(tester.getCenter(find.text('À déplacer')));
+      await tester.pump(const Duration(milliseconds: 600)); // appui long
+      await gesture.moveTo(tester.getCenter(find.byKey(Key('day-strip-${isoDate(target)}'))));
+      await tester.pump(const Duration(milliseconds: 100));
+      await gesture.moveTo(tester.getCenter(find.byKey(Key('day-strip-${isoDate(target)}'))) + const Offset(0, 4));
+      await tester.pump(const Duration(milliseconds: 100));
+      await gesture.up();
+      await tester.pumpAndSettle();
+
+      expect(fake.moved, [('s1', isoDate(target))]);
+    });
+
+    testWidgets('téléphone : déposer sur son propre jour ne fait rien', (tester) async {
+      tester.view.physicalSize = const Size(400, 800);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+      final fake = FakeSessions();
+      await tester.pumpWidget(testApp(
+        const WeekScreen(),
+        overrides: clubOverrides(sessions: [session('s1', isoDate(today), 'Reste ici')], sessionActions: fake),
+      ));
+      await tester.pumpAndSettle();
+
+      final gesture = await tester.startGesture(tester.getCenter(find.text('Reste ici')));
+      await tester.pump(const Duration(milliseconds: 600));
+      await gesture.moveTo(tester.getCenter(find.byKey(Key('day-strip-${isoDate(today)}'))));
+      await tester.pump(const Duration(milliseconds: 100));
+      await gesture.up();
+      await tester.pumpAndSettle();
+      expect(fake.moved, isEmpty);
+    });
+
     testWidgets('tablette : un athlète ne peut ni ajouter ni déplacer', (tester) async {
       tester.view.physicalSize = const Size(1400, 900);
       tester.view.devicePixelRatio = 1;
