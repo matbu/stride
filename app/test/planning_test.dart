@@ -205,6 +205,21 @@ void main() {
       expect(d.date, isNull);
     });
 
+    testWidgets('les notes sont enregistrées avec la séance', (tester) async {
+      tallScreen(tester);
+      final fake = FakeSessions();
+      await openEditor(tester, newSessionDraft(template: true), clubOverrides(sessionActions: fake));
+
+      await tester.tap(find.byKey(const Key('type-Endurance')));
+      await tester.enterText(find.byKey(const Key('session-title')), 'Footing 1h');
+      await tester.enterText(find.byKey(const Key('session-notes')), 'A couru sous la pluie, bonnes sensations.');
+      await tester.pump();
+      await tester.tap(find.byKey(const Key('session-save')));
+      await tester.pumpAndSettle();
+
+      expect(fake.saved.single.description, 'A couru sous la pluie, bonnes sensations.');
+    });
+
     testWidgets('création sur plusieurs groupes : un seul brouillon, le serveur crée une séance par groupe',
         (tester) async {
       tallScreen(tester);
@@ -583,6 +598,25 @@ void main() {
       expect(find.text("Footing 10'"), findsOneWidget);
       expect(find.text('Volume d’effort : 4 km'), findsOneWidget);
       expect(find.byKey(const Key('session-save')), findsNothing, reason: 'lecture seule');
+    });
+
+    testWidgets('un athlète voit les notes de la séance', (tester) async {
+      final overrides = clubOverrides(
+        me: membership(role: ClubRole.athlete),
+        sessions: [
+          PlannedSession(
+            id: 's1', typeId: fractionne.id, title: 'Ma séance', groupId: sprintGroup.id, date: todayIso,
+            description: 'Terrain glissant, prévoir des pointes.',
+          ),
+        ],
+      );
+      await tester.pumpWidget(testApp(const WeekScreen(), overrides: overrides));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Ma séance'));
+      await tester.pumpAndSettle();
+      expect(find.text('Notes'), findsOneWidget);
+      expect(find.text('Terrain glissant, prévoir des pointes.'), findsOneWidget);
     });
 
     testWidgets('un coach qui touche une séance ouvre l’éditeur', (tester) async {

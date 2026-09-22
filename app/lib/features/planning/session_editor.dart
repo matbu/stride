@@ -44,6 +44,7 @@ class SessionEditorScreen extends ConsumerStatefulWidget {
 class _SessionEditorScreenState extends ConsumerState<SessionEditorScreen> {
   late final SessionDraft _d = widget.draft;
   late final TextEditingController _title = TextEditingController(text: _d.title);
+  late final TextEditingController _notes = TextEditingController(text: _d.description);
 
   /// Une séance existante charge ses blocs depuis la base ; une nouvelle a déjà les siens.
   late bool _blocksLoaded = _d.id == null;
@@ -60,6 +61,7 @@ class _SessionEditorScreenState extends ConsumerState<SessionEditorScreen> {
   @override
   void dispose() {
     _title.dispose();
+    _notes.dispose();
     super.dispose();
   }
 
@@ -69,6 +71,7 @@ class _SessionEditorScreenState extends ConsumerState<SessionEditorScreen> {
     final clubId = ref.read(clubIdProvider);
     if (clubId == null || !_valid) return;
     _d.title = _title.text.trim();
+    _d.description = _notes.text.trim();
     // Les blocs laissés vides ne sont pas enregistrés.
     _d.blocks.removeWhere((b) => b.items.isEmpty && b.title.isEmpty && b.notes.isEmpty);
     setState(() => _busy = true);
@@ -407,6 +410,17 @@ class _SessionEditorScreenState extends ConsumerState<SessionEditorScreen> {
                     ),
                   ],
                 ],
+                const SectionHeader('Notes'),
+                TextField(
+                  key: const Key('session-notes'),
+                  controller: _notes,
+                  maxLines: 3,
+                  textCapitalization: TextCapitalization.sentences,
+                  decoration: const InputDecoration(
+                    hintText: 'Ressenti, ajustements, consignes… avant ou après la séance.',
+                  ),
+                  onChanged: (_) => _touch(),
+                ),
               ],
             ),
           ),

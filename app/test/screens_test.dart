@@ -78,6 +78,15 @@ void main() {
   });
 
   group('club', () {
+    testWidgets('un coach a un accès direct à la déconnexion dans l’AppBar', (tester) async {
+      await tester.pumpWidget(testApp(const ClubScreen(), overrides: clubOverrides()));
+      await tester.pumpAndSettle();
+
+      // Dans l'AppBar (jamais hors écran), en plus du bouton texte en bas de liste.
+      final appBar = find.ancestor(of: find.byKey(const Key('sign-out')), matching: find.byType(AppBar));
+      expect(appBar, findsOneWidget);
+    });
+
     testWidgets('le super coach voit les demandes de coach et peut approuver', (tester) async {
       final fake = FakeClubActions();
       final requests = [
@@ -205,6 +214,14 @@ void main() {
   });
 
   group('profil athlète', () {
+    testWidgets('accès direct à la déconnexion dans l’AppBar', (tester) async {
+      await tester.pumpWidget(testApp(const ProfileScreen(), overrides: clubOverrides()));
+      await tester.pumpAndSettle();
+
+      final appBar = find.ancestor(of: find.byKey(const Key('sign-out')), matching: find.byType(AppBar));
+      expect(appBar, findsOneWidget);
+    });
+
     testWidgets('un athlète rejoint et quitte librement un groupe', (tester) async {
       final planning = FakePlanning();
       const me = Athlete(id: 'a1', fullName: 'Léa', userId: 'u-julie');

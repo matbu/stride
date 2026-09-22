@@ -125,7 +125,17 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         : (ref.watch(athleteRecordsProvider(athlete.id)).value ?? const <AthleteRecord>[]);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Profil')),
+      appBar: AppBar(
+        title: const Text('Profil'),
+        actions: [
+          IconButton(
+            key: const Key('sign-out'),
+            tooltip: 'Se déconnecter',
+            icon: const Icon(Icons.logout),
+            onPressed: () => confirmSignOut(context, ref),
+          ),
+        ],
+      ),
       body: ListView(
         padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
         children: [

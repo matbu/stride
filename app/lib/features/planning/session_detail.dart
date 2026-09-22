@@ -45,6 +45,8 @@ class SessionDetailScreen extends ConsumerWidget {
               ),
               if (session.description.isNotEmpty) ...[
                 const SizedBox(height: 12),
+                Text('Notes', style: theme.textTheme.labelLarge),
+                const SizedBox(height: 4),
                 Text(session.description, style: theme.textTheme.bodyLarge),
               ],
               const SizedBox(height: 20),

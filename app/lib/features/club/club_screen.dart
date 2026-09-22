@@ -37,7 +37,17 @@ class ClubScreen extends ConsumerWidget {
       );
 
     return Scaffold(
-      appBar: AppBar(title: Text(club.name)),
+      appBar: AppBar(
+        title: Text(club.name),
+        actions: [
+          IconButton(
+            key: const Key('sign-out'),
+            tooltip: 'Se déconnecter',
+            icon: const Icon(Icons.logout),
+            onPressed: () => confirmSignOut(context, ref),
+          ),
+        ],
+      ),
       body: ListView(
         padding: const EdgeInsets.fromLTRB(16, 0, 16, 32),
         children: [
