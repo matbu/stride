@@ -149,6 +149,23 @@ final sessionsForWeekProvider =
   );
 });
 
+/// Séances placées entre deux jours (inclus) ; la clé est `débutIso|finIso` (vue mois : la
+/// grille déborde sur les semaines des mois voisins, d'où un intervalle plutôt qu'un mois pile).
+final sessionsForRangeProvider =
+    StreamProvider.family<List<PlannedSession>, String>((ref, range) {
+  final clubId = ref.watch(clubIdProvider);
+  if (clubId == null) return Stream.value(const []);
+  final parts = range.split('|');
+  return _query(
+    ref,
+    'SELECT * FROM sessions WHERE club_id = ? AND is_template = 0 '
+    'AND scheduled_date BETWEEN ? AND ? '
+    'ORDER BY scheduled_date, start_time IS NULL, start_time, title',
+    [clubId, parts[0], parts[1]],
+    PlannedSession.fromRow,
+  );
+});
+
 /// Modèles de la bibliothèque du club.
 final templatesProvider = StreamProvider<List<Template>>((ref) {
   final clubId = ref.watch(clubIdProvider);

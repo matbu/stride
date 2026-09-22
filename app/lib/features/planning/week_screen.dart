@@ -6,18 +6,21 @@ import '../../data/models.dart';
 import '../../data/queries.dart';
 import '../../data/session_actions.dart';
 import '../common.dart';
+import 'month_grid.dart';
 import 'navigation.dart';
 import 'session_card.dart';
 
 /// Largeur à partir de laquelle on affiche les 7 jours côte à côte (tablette, paysage).
 const weekColumnsMinWidth = 720.0;
 
-/// Vue semaine.
+/// Vue semaine, et vue mois (bouton calendrier dans l'AppBar).
 ///  * Téléphone : bande des 7 jours (pastilles de couleur par type) et agenda du jour
 ///    sélectionné ; glisser horizontalement change de jour. Un coach déplace une séance
 ///    vers un autre jour en la maintenant appuyée puis en la glissant sur la pastille du jour,
 ///    ou la supprime en la glissant vers la gauche (confirmation demandée).
 ///  * Tablette : 7 colonnes. Mêmes gestes, directement d'une colonne à l'autre.
+///  * Vue mois : grille façon Google Calendar, juste des pastilles ; toucher un jour revient
+///    à l'agenda de ce jour.
 class WeekScreen extends ConsumerStatefulWidget {
   const WeekScreen({super.key});
 
@@ -28,10 +31,19 @@ class WeekScreen extends ConsumerStatefulWidget {
 class _WeekScreenState extends ConsumerState<WeekScreen> {
   DateTime _selected = dateOnly(DateTime.now());
   String? _groupFilter; // null = tous les groupes
+  bool _monthView = false;
+  late DateTime _monthCursor = DateTime(_selected.year, _selected.month, 1);
 
   DateTime get _monday => mondayOf(_selected);
 
   void _shiftDays(int n) => setState(() => _selected = addDays(_selected, n));
+
+  void _shiftMonths(int n) => setState(() => _monthCursor = DateTime(_monthCursor.year, _monthCursor.month + n, 1));
+
+  void _toggleMonthView() => setState(() {
+        _monthView = !_monthView;
+        if (_monthView) _monthCursor = DateTime(_selected.year, _selected.month, 1);
+      });
 
   @override
   Widget build(BuildContext context) {
@@ -64,22 +76,36 @@ class _WeekScreenState extends ConsumerState<WeekScreen> {
       final wide = constraints.maxWidth >= weekColumnsMinWidth;
       return Scaffold(
         appBar: AppBar(
-          title: Text(weekRangeLabel(_monday)),
+          title: Text(_monthView ? monthLabel(_monthCursor) : weekRangeLabel(_monday)),
           actions: [
-            if (_selected != today)
+            if (_monthView
+                ? (_monthCursor.year != today.year || _monthCursor.month != today.month)
+                : _selected != today)
               TextButton(
-                onPressed: () => setState(() => _selected = today),
+                onPressed: () => setState(() {
+                  if (_monthView) {
+                    _monthCursor = DateTime(today.year, today.month, 1);
+                  } else {
+                    _selected = today;
+                  }
+                }),
                 child: const Text('Aujourd’hui'),
               ),
             IconButton(
-              tooltip: 'Semaine précédente',
+              tooltip: _monthView ? 'Mois précédent' : 'Semaine précédente',
               icon: const Icon(Icons.chevron_left),
-              onPressed: () => _shiftDays(-7),
+              onPressed: () => _monthView ? _shiftMonths(-1) : _shiftDays(-7),
             ),
             IconButton(
-              tooltip: 'Semaine suivante',
+              tooltip: _monthView ? 'Mois suivant' : 'Semaine suivante',
               icon: const Icon(Icons.chevron_right),
-              onPressed: () => _shiftDays(7),
+              onPressed: () => _monthView ? _shiftMonths(1) : _shiftDays(7),
+            ),
+            IconButton(
+              key: const Key('toggle-month-view'),
+              tooltip: _monthView ? 'Vue semaine' : 'Vue mois',
+              icon: Icon(_monthView ? Icons.view_week_outlined : Icons.calendar_view_month_outlined),
+              onPressed: _toggleMonthView,
             ),
           ],
         ),
@@ -94,7 +120,7 @@ class _WeekScreenState extends ConsumerState<WeekScreen> {
             : null,
         body: Column(
           children: [
-            if (!wide)
+            if (!_monthView && !wide)
               _DayStrip(
                 monday: _monday,
                 selected: _selected,
@@ -124,35 +150,49 @@ class _WeekScreenState extends ConsumerState<WeekScreen> {
               ),
             const Divider(height: 1),
             Expanded(
-              child: wide
-                  ? _WeekColumns(
-                      monday: _monday,
-                      today: today,
-                      sessions: sessions,
-                      types: types,
-                      groupNames: groupNames,
-                      isCoach: isCoach,
-                      onOpen: open,
-                      onAdd: (d) => startNewSession(context, date: d, groupId: _groupFilter),
-                      onDelete: deleteSession,
-                    )
-                  : GestureDetector(
-                      behavior: HitTestBehavior.translucent,
-                      onHorizontalDragEnd: (d) {
-                        final v = d.primaryVelocity ?? 0;
-                        if (v.abs() > 300) _shiftDays(v < 0 ? 1 : -1);
-                      },
-                      child: _DayAgenda(
-                        day: _selected,
-                        sessions: sessions.where((s) => s.date == isoDate(_selected)).toList(),
+              child: _monthView
+                  ? Padding(
+                      padding: const EdgeInsets.all(8),
+                      child: MonthGrid(
+                        month: _monthCursor,
+                        today: today,
                         types: types,
-                        groupNames: groupNames,
-                        isCoach: isCoach,
-                        onOpen: open,
-                        onAdd: () => startNewSession(context, date: _selected, groupId: _groupFilter),
-                        onDelete: deleteSession,
+                        groupFilter: _groupFilter,
+                        onSelectDay: (d) => setState(() {
+                          _selected = d;
+                          _monthView = false;
+                        }),
                       ),
-                    ),
+                    )
+                  : wide
+                      ? _WeekColumns(
+                          monday: _monday,
+                          today: today,
+                          sessions: sessions,
+                          types: types,
+                          groupNames: groupNames,
+                          isCoach: isCoach,
+                          onOpen: open,
+                          onAdd: (d) => startNewSession(context, date: d, groupId: _groupFilter),
+                          onDelete: deleteSession,
+                        )
+                      : GestureDetector(
+                          behavior: HitTestBehavior.translucent,
+                          onHorizontalDragEnd: (d) {
+                            final v = d.primaryVelocity ?? 0;
+                            if (v.abs() > 300) _shiftDays(v < 0 ? 1 : -1);
+                          },
+                          child: _DayAgenda(
+                            day: _selected,
+                            sessions: sessions.where((s) => s.date == isoDate(_selected)).toList(),
+                            types: types,
+                            groupNames: groupNames,
+                            isCoach: isCoach,
+                            onOpen: open,
+                            onAdd: () => startNewSession(context, date: _selected, groupId: _groupFilter),
+                            onDelete: deleteSession,
+                          ),
+                        ),
             ),
           ],
         ),

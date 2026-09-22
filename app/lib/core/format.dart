@@ -26,6 +26,9 @@ String _capitalize(String s) =>
 String longDayLabel(DateTime d) =>
     _capitalize(DateFormat('EEEE d MMMM', 'fr').format(d));
 
+/// « Septembre 2026 ».
+String monthLabel(DateTime firstOfMonth) => _capitalize(DateFormat('MMMM yyyy', 'fr').format(firstOfMonth));
+
 /// « 21 – 27 sept. » ou « 28 sept. – 4 oct. » selon que la semaine chevauche deux mois.
 String weekRangeLabel(DateTime monday) {
   final sunday = addDays(monday, 6);

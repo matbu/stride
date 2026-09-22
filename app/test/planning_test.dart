@@ -506,6 +506,39 @@ void main() {
       expect(find.text('Reste'), findsOneWidget);
     });
 
+    testWidgets('vue mois : bouton bascule, affiche la grille et le mois courant', (tester) async {
+      tester.view.physicalSize = const Size(400, 800);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+      await tester.pumpWidget(testApp(const WeekScreen(), overrides: clubOverrides()));
+      await tester.pumpAndSettle();
+
+      expect(find.byKey(Key('day-strip-$dayA')), findsOneWidget);
+      await tester.tap(find.byKey(const Key('toggle-month-view')));
+      await tester.pumpAndSettle();
+
+      expect(find.byKey(Key('day-strip-$dayA')), findsNothing);
+      expect(find.text(monthLabel(today)), findsOneWidget);
+      expect(find.byKey(Key('month-day-${isoDate(today)}')), findsOneWidget);
+    });
+
+    testWidgets('vue mois : toucher un jour revient à l’agenda de ce jour', (tester) async {
+      tester.view.physicalSize = const Size(400, 800);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+      final sessions = [session('s1', dayB, 'Séance du mercredi')];
+      await tester.pumpWidget(testApp(const WeekScreen(), overrides: clubOverrides(sessions: sessions)));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('toggle-month-view')));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byKey(Key('month-day-$dayB')));
+      await tester.pumpAndSettle();
+
+      expect(find.byKey(const Key('toggle-month-view')), findsOneWidget); // on est bien revenu à la vue semaine
+      expect(find.text('Séance du mercredi'), findsOneWidget);
+    });
+
     testWidgets('tablette : un athlète ne peut ni ajouter ni déplacer', (tester) async {
       tester.view.physicalSize = const Size(1400, 900);
       tester.view.devicePixelRatio = 1;
