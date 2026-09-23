@@ -49,6 +49,13 @@ const schema = Schema([
     Column.text('achieved_on'),
     Column.text('competition'),
   ]),
+  // Existence = « fait » ; pas de colonne booléenne (voir la migration).
+  Table('session_completions', [
+    Column.text('club_id'),
+    Column.text('user_id'),
+    Column.text('session_id'),
+    Column.text('athlete_id'),
+  ]),
   Table('invitations', [
     Column.text('club_id'),
     Column.text('code'),

@@ -140,6 +140,28 @@ void main() {
       expect(d.blocks.single.items, [const BlockItem(reps: 8, distanceM: 400, recoveryS: 60)]);
     });
 
+    testWidgets('le titre en saisie rapide propose de remplir le corps de séance', (tester) async {
+      tallScreen(tester);
+      await openEditor(tester, newSessionDraft(), clubOverrides());
+
+      // Un titre avec juste des chiffres (le signe ×, pas la lettre x) ne propose rien.
+      await tester.enterText(find.byKey(const Key('session-title')), '10 × 400 + 3 × 300');
+      await tester.pump();
+      expect(find.byKey(const Key('title-autofill-suggestion')), findsNothing);
+
+      // De la vraie notation propose de remplir, et n'écrase rien tant qu'on ne valide pas.
+      await tester.enterText(find.byKey(const Key('session-title')), "10x400 r1' 3x300 r1'");
+      await tester.pump();
+      expect(find.byKey(const Key('title-autofill-suggestion')), findsOneWidget);
+      expect(find.text("10 × 400 m · récup 1'"), findsNothing, reason: 'pas encore appliqué');
+
+      await tester.tap(find.byKey(const Key('title-autofill-suggestion')));
+      await tester.pump();
+      expect(find.text("10 × 400 m · récup 1'"), findsOneWidget);
+      expect(find.text("3 × 300 m · récup 1'"), findsOneWidget);
+      expect(find.byKey(const Key('title-autofill-suggestion')), findsNothing, reason: 'corps déjà rempli');
+    });
+
     testWidgets('on peut ajouter un bloc à la bonne place', (tester) async {
       tallScreen(tester);
       await openEditor(tester, newSessionDraft(), clubOverrides());
@@ -552,6 +574,85 @@ void main() {
 
       expect(find.byKey(const Key('toggle-month-view')), findsOneWidget); // on est bien revenu à la vue semaine
       expect(find.text('Séance du mercredi'), findsOneWidget);
+    });
+
+    testWidgets('un coach filtre par athlète : ses groupes, et le statut fait/non fait', (tester) async {
+      tester.view.physicalSize = const Size(400, 800);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+      const lea = Athlete(id: 'a1', fullName: 'Léa Martin', userId: 'u3');
+      final demiSession = PlannedSession(
+        id: 's2', typeId: fractionne.id, title: 'Séance demi-fond', groupId: demiGroup.id, date: todayIso,
+      );
+      final overrides = clubOverrides(
+        athletes: const [lea],
+        links: {
+          'a1': {sprintGroup.id},
+        },
+        sessions: [session('s1', todayIso, 'Séance sprint'), demiSession],
+        completions: {
+          'a1': {'s1'},
+        },
+      );
+      await tester.pumpWidget(testApp(const WeekScreen(), overrides: overrides));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Séance sprint'), findsOneWidget);
+      expect(find.text('Séance demi-fond'), findsOneWidget);
+
+      // La rangée de filtres défile horizontalement : le chip athlète peut être hors viewport.
+      await tester.drag(find.text('Tous'), const Offset(-400, 0));
+      await tester.pump();
+      await tester.tap(find.byKey(const Key('filter-athlete-Léa Martin')));
+      await tester.pumpAndSettle();
+      expect(find.text('Séance sprint'), findsOneWidget);
+      expect(find.text('Séance demi-fond'), findsNothing, reason: 'Léa n’est pas dans ce groupe');
+      expect(find.byIcon(Icons.check_circle), findsOneWidget, reason: 'marquée faite par Léa');
+      expect(find.byKey(const Key('done-toggle-s1')), findsNothing, reason: 'lecture seule pour un coach');
+    });
+
+    testWidgets('un athlète marque puis démarque sa séance depuis la vue semaine', (tester) async {
+      tester.view.physicalSize = const Size(400, 800);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+      const lea = Athlete(id: 'a1', fullName: 'Léa', userId: 'u-julie');
+      final fake = FakeSessions();
+      final overrides = clubOverrides(
+        me: membership(role: ClubRole.athlete),
+        athletes: const [lea],
+        links: {
+          'a1': {sprintGroup.id},
+        },
+        sessions: [session('s1', todayIso, 'Ma séance')],
+        sessionActions: fake,
+      );
+      await tester.pumpWidget(testApp(const WeekScreen(), overrides: overrides));
+      await tester.pumpAndSettle();
+
+      expect(find.byIcon(Icons.radio_button_unchecked), findsOneWidget, reason: 'non fait par défaut');
+      await tester.tap(find.byKey(const Key('done-toggle-s1')));
+      await tester.pump();
+      expect(fake.markedDone, [('s1', 'a1')]);
+    });
+
+    testWidgets('un athlète marque une séance faite depuis sa fiche détail', (tester) async {
+      const lea = Athlete(id: 'a1', fullName: 'Léa', userId: 'u-julie');
+      final fake = FakeSessions();
+      final overrides = clubOverrides(
+        me: membership(role: ClubRole.athlete),
+        athletes: const [lea],
+        sessions: [session('s1', todayIso, 'Ma séance')],
+        sessionActions: fake,
+      );
+      await tester.pumpWidget(testApp(const WeekScreen(), overrides: overrides));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Ma séance'));
+      await tester.pumpAndSettle();
+      expect(find.text('Marquer comme faite'), findsOneWidget);
+      await tester.tap(find.byKey(const Key('toggle-done')));
+      await tester.pump();
+      expect(fake.markedDone, [('s1', 'a1')]);
     });
 
     testWidgets('tablette : un athlète ne peut ni ajouter ni déplacer', (tester) async {

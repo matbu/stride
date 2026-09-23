@@ -256,6 +256,20 @@ check("déplacement : les blocs suivent", su("select group_id from public.sessio
 check("déplacement : Léa ne la voit plus", count(lea, "sessions") == 0 and count(lea, "session_blocks") == 0)
 run(marc, "update public.sessions set group_id = %s where id = %s", (sprint, planned))
 
+print("séances : fait / non fait")
+run(lea, "insert into public.session_completions (session_id, athlete_id) values (%s, %s)", (planned, lea_ath))
+check("club_id/user_id remplis par trigger sur la complétion",
+      su("select club_id, user_id from public.session_completions where session_id=%s and athlete_id=%s", (planned, lea_ath)) == [(club, lea)])
+fails("un athlète ne marque pas fait à la place d'un autre", lea,
+      "insert into public.session_completions (session_id, athlete_id) values (%s, %s)", (planned, tom_ath), "row-level security")
+check("un coach voit la complétion", count(marc, "session_completions") == 1)
+check("un autre athlète ne la voit pas", count(tom, "session_completions") == 0)
+run(marc, "delete from public.session_completions where session_id=%s and athlete_id=%s", (planned, lea_ath))
+check("un coach ne démarque pas à la place de l'athlète",
+      count(lea, "session_completions", "session_id=%s", (planned,)) == 1)
+run(lea, "delete from public.session_completions where session_id=%s and athlete_id=%s", (planned, lea_ath))
+check("un athlète démarque sa propre séance", count(lea, "session_completions", "session_id=%s", (planned,)) == 0)
+
 # Groupe vide : autorisé.
 run(marc, "insert into public.sessions (club_id, type_id, title, group_id, scheduled_date) values (%s, %s, 'Footing', %s, '2026-09-25')", (club, type_id, demi))
 check("séance sur un groupe vide autorisée", count(marc, "sessions", "group_id = %s", (demi,)) == 1)

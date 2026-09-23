@@ -133,6 +133,16 @@ final athleteRecordsProvider = StreamProvider.family<List<AthleteRecord>, String
   );
 });
 
+/// Séances qu'un athlète a marquées faites (l'ensemble de leurs `session_id`).
+final completionsForAthleteProvider = StreamProvider.family<Set<String>, String>((ref, athleteId) {
+  return _query(
+    ref,
+    'SELECT session_id FROM session_completions WHERE athlete_id = ?',
+    [athleteId],
+    (r) => r['session_id'] as String,
+  ).map((rows) => rows.toSet());
+});
+
 /// athlete_id → ensemble des groupes. Un coach reçoit tous les liens du club, un athlète
 /// uniquement les siens (règles de sync).
 final groupLinksProvider = StreamProvider<Map<String, Set<String>>>((ref) {

@@ -21,6 +21,9 @@ const weekColumnsMinWidth = 720.0;
 ///  * Tablette : 7 colonnes. Mêmes gestes, directement d'une colonne à l'autre.
 ///  * Vue mois : grille façon Google Calendar, juste des pastilles ; toucher un jour revient
 ///    à l'agenda de ce jour.
+///  * Filtre coach (bande de chips) : Tous / un groupe / un athlète (mutuellement exclusifs).
+///    Filtrer par athlète restreint aux groupes de cet athlète et affiche son statut « fait /
+///    non fait » (lecture seule pour le coach — façon Pronote, seul l'athlète le marque).
 class WeekScreen extends ConsumerStatefulWidget {
   const WeekScreen({super.key});
 
@@ -31,6 +34,7 @@ class WeekScreen extends ConsumerStatefulWidget {
 class _WeekScreenState extends ConsumerState<WeekScreen> {
   DateTime _selected = dateOnly(DateTime.now());
   String? _groupFilter; // null = tous les groupes
+  String? _athleteFilter; // mutuellement exclusif avec _groupFilter
   bool _monthView = false;
   late DateTime _monthCursor = DateTime(_selected.year, _selected.month, 1);
 
@@ -45,15 +49,51 @@ class _WeekScreenState extends ConsumerState<WeekScreen> {
         if (_monthView) _monthCursor = DateTime(_selected.year, _selected.month, 1);
       });
 
+  void _setGroupFilter(String? id) => setState(() {
+        _groupFilter = id;
+        _athleteFilter = null;
+      });
+
+  void _setAthleteFilter(String? id) => setState(() {
+        _athleteFilter = id;
+        _groupFilter = null;
+      });
+
   @override
   Widget build(BuildContext context) {
     final isCoach = ref.watch(isCoachProvider);
     final groups = ref.watch(groupsProvider).value ?? const <Group>[];
+    final athletes = ref.watch(athletesProvider).value ?? const <Athlete>[];
+    final groupLinks = ref.watch(groupLinksProvider).value ?? const <String, Set<String>>{};
     final types = {for (final t in ref.watch(sessionTypesProvider).value ?? const <SessionType>[]) t.id: t};
     final groupNames = {for (final g in groups) g.id: g.name};
     final all = ref.watch(sessionsForWeekProvider(isoDate(_monday))).value ?? const <PlannedSession>[];
-    final sessions = _groupFilter == null ? all : all.where((s) => s.groupId == _groupFilter).toList();
+    final sessions = _groupFilter != null
+        ? all.where((s) => s.groupId == _groupFilter).toList()
+        : _athleteFilter != null
+            ? all.where((s) => (groupLinks[_athleteFilter] ?? const <String>{}).contains(s.groupId)).toList()
+            : all;
     final today = dateOnly(DateTime.now());
+
+    // Le suivi « fait / non fait » : le sien pour un athlète, celui de l'athlète filtré pour un
+    // coach (lecture seule — un coach ne marque jamais à la place de l'athlète).
+    final myAthlete = ref.watch(myAthleteProvider);
+    final statusAthleteId = isCoach ? _athleteFilter : myAthlete?.id;
+    final doneIds = statusAthleteId == null
+        ? const <String>{}
+        : ref.watch(completionsForAthleteProvider(statusAthleteId)).value ?? const <String>{};
+    final canToggleDone = !isCoach && myAthlete != null;
+
+    void toggleDone(PlannedSession s) {
+      final clubId = ref.read(clubIdProvider);
+      if (clubId == null || statusAthleteId == null) return;
+      guarded(
+        context,
+        () => doneIds.contains(s.id)
+            ? ref.read(sessionActionsProvider).markNotDone(s.id, statusAthleteId)
+            : ref.read(sessionActionsProvider).markDone(s.id, statusAthleteId, clubId: clubId),
+      );
+    }
 
     void open(PlannedSession s) => openSession(
           context,
@@ -131,19 +171,30 @@ class _WeekScreenState extends ConsumerState<WeekScreen> {
                 onSelect: (d) => setState(() => _selected = d),
                 onDrop: moveToDay,
               ),
-            if (isCoach && groups.length > 1)
+            if (isCoach && (groups.isNotEmpty || athletes.isNotEmpty))
               SizedBox(
                 height: 48,
                 child: ListView(
                   scrollDirection: Axis.horizontal,
                   padding: const EdgeInsets.symmetric(horizontal: 12),
                   children: [
-                    _FilterChip(label: 'Tous', selected: _groupFilter == null, onTap: () => setState(() => _groupFilter = null)),
+                    _FilterChip(
+                      label: 'Tous',
+                      selected: _groupFilter == null && _athleteFilter == null,
+                      onTap: () => setState(() {
+                        _groupFilter = null;
+                        _athleteFilter = null;
+                      }),
+                    ),
                     for (final g in groups)
+                      _FilterChip(label: g.name, selected: _groupFilter == g.id, onTap: () => _setGroupFilter(g.id)),
+                    for (final a in athletes)
                       _FilterChip(
-                        label: g.name,
-                        selected: _groupFilter == g.id,
-                        onTap: () => setState(() => _groupFilter = g.id),
+                        key: Key('filter-athlete-${a.fullName}'),
+                        label: a.fullName,
+                        icon: Icons.person_outline,
+                        selected: _athleteFilter == a.id,
+                        onTap: () => _setAthleteFilter(a.id),
                       ),
                   ],
                 ),
@@ -158,6 +209,8 @@ class _WeekScreenState extends ConsumerState<WeekScreen> {
                         today: today,
                         types: types,
                         groupFilter: _groupFilter,
+                        athleteFilter: _athleteFilter,
+                        groupLinks: groupLinks,
                         onSelectDay: (d) => setState(() {
                           _selected = d;
                           _monthView = false;
@@ -175,6 +228,8 @@ class _WeekScreenState extends ConsumerState<WeekScreen> {
                           onOpen: open,
                           onAdd: (d) => startNewSession(context, date: d, groupId: _groupFilter),
                           onDelete: deleteSession,
+                          doneIds: statusAthleteId == null ? null : doneIds,
+                          onToggleDone: canToggleDone ? toggleDone : null,
                         )
                       : GestureDetector(
                           behavior: HitTestBehavior.translucent,
@@ -191,6 +246,8 @@ class _WeekScreenState extends ConsumerState<WeekScreen> {
                             onOpen: open,
                             onAdd: () => startNewSession(context, date: _selected, groupId: _groupFilter),
                             onDelete: deleteSession,
+                            doneIds: statusAthleteId == null ? null : doneIds,
+                            onToggleDone: canToggleDone ? toggleDone : null,
                           ),
                         ),
             ),
@@ -229,15 +286,21 @@ Widget _deleteBackground(ThemeData theme) => Container(
     );
 
 class _FilterChip extends StatelessWidget {
-  const _FilterChip({required this.label, required this.selected, required this.onTap});
+  const _FilterChip({super.key, required this.label, required this.selected, required this.onTap, this.icon});
   final String label;
   final bool selected;
   final VoidCallback onTap;
+  final IconData? icon;
 
   @override
   Widget build(BuildContext context) => Padding(
         padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
-        child: ChoiceChip(label: Text(label), selected: selected, onSelected: (_) => onTap()),
+        child: ChoiceChip(
+          avatar: icon == null ? null : Icon(icon, size: 18),
+          label: Text(label),
+          selected: selected,
+          onSelected: (_) => onTap(),
+        ),
       );
 }
 
@@ -366,6 +429,8 @@ class _DayAgenda extends StatelessWidget {
     required this.onOpen,
     required this.onAdd,
     required this.onDelete,
+    this.doneIds,
+    this.onToggleDone,
   });
 
   final DateTime day;
@@ -376,6 +441,10 @@ class _DayAgenda extends StatelessWidget {
   final ValueChanged<PlannedSession> onOpen;
   final VoidCallback onAdd;
   final ValueChanged<PlannedSession> onDelete;
+
+  /// Null : pas de contexte athlète, aucun indicateur affiché.
+  final Set<String>? doneIds;
+  final ValueChanged<PlannedSession>? onToggleDone;
 
   @override
   Widget build(BuildContext context) {
@@ -425,6 +494,8 @@ class _DayAgenda extends StatelessWidget {
       type: types[s.typeId],
       groupName: groupNames[s.groupId],
       onTap: () => onOpen(s),
+      done: doneIds?.contains(s.id),
+      onToggleDone: onToggleDone == null ? null : () => onToggleDone!(s),
     );
     if (!isCoach) return child;
     final draggable = LongPressDraggable<PlannedSession>(
@@ -465,6 +536,8 @@ class _WeekColumns extends ConsumerWidget {
     required this.onOpen,
     required this.onAdd,
     required this.onDelete,
+    this.doneIds,
+    this.onToggleDone,
   });
 
   final DateTime monday;
@@ -476,6 +549,8 @@ class _WeekColumns extends ConsumerWidget {
   final ValueChanged<PlannedSession> onOpen;
   final ValueChanged<DateTime> onAdd;
   final ValueChanged<PlannedSession> onDelete;
+  final Set<String>? doneIds;
+  final ValueChanged<PlannedSession>? onToggleDone;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -500,6 +575,8 @@ class _WeekColumns extends ConsumerWidget {
                   () => ref.read(sessionActionsProvider).move(s.id, isoDate(addDays(monday, i))),
                 ),
                 onDelete: onDelete,
+                doneIds: doneIds,
+                onToggleDone: onToggleDone,
               ),
             ),
         ],
@@ -520,6 +597,8 @@ class _DayColumn extends StatelessWidget {
     required this.onAdd,
     required this.onDrop,
     required this.onDelete,
+    this.doneIds,
+    this.onToggleDone,
   });
 
   final DateTime day;
@@ -532,6 +611,8 @@ class _DayColumn extends StatelessWidget {
   final VoidCallback onAdd;
   final ValueChanged<PlannedSession> onDrop;
   final ValueChanged<PlannedSession> onDelete;
+  final Set<String>? doneIds;
+  final ValueChanged<PlannedSession>? onToggleDone;
 
   @override
   Widget build(BuildContext context) {
@@ -545,6 +626,8 @@ class _DayColumn extends StatelessWidget {
         groupName: groupNames[s.groupId],
         compact: true,
         onTap: () => onOpen(s),
+        done: doneIds?.contains(s.id),
+        onToggleDone: onToggleDone == null ? null : () => onToggleDone!(s),
       );
       if (!isCoach) return child;
       final draggable = LongPressDraggable<PlannedSession>(

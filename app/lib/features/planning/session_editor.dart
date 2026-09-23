@@ -67,6 +67,42 @@ class _SessionEditorScreenState extends ConsumerState<SessionEditorScreen> {
 
   void _touch() => setState(() => _dirty = true);
 
+  BlockDraft? get _mainBlock {
+    for (final b in _d.blocks) {
+      if (b.kind == BlockKind.main) return b;
+    }
+    return null;
+  }
+
+  /// Suggestion de remplissage du corps de séance à partir du titre, si celui-ci ressemble à de
+  /// la saisie rapide (« 10x400 r1' »). On ne l'applique jamais silencieusement (un titre peut
+  /// contenir des chiffres sans être une notation, ex. « 10 × 400 m ») : le coach valide.
+  List<BlockItem>? _titleSuggestion;
+
+  void _updateTitleSuggestion(String text) {
+    final main = _mainBlock;
+    // Le marqueur `x`/`X` entre deux chiffres est le signal fort de la notation (par opposition
+    // à un titre qui contient juste des nombres, ex. le signe « × » n'est pas un « x »).
+    final looksLikeNotation = RegExp(r'\d\s*[xX]\s*\d').hasMatch(text);
+    List<BlockItem>? suggestion;
+    if (main != null && main.items.isEmpty && looksLikeNotation) {
+      final parsed = parseNotation(text);
+      if (parsed.any((i) => i.hasEffort)) suggestion = parsed;
+    }
+    if (suggestion != _titleSuggestion) setState(() => _titleSuggestion = suggestion);
+  }
+
+  void _applyTitleSuggestion() {
+    final suggestion = _titleSuggestion;
+    final main = _mainBlock;
+    if (suggestion == null || main == null) return;
+    setState(() {
+      main.items = suggestion;
+      _titleSuggestion = null;
+      _dirty = true;
+    });
+  }
+
   Future<void> _save() async {
     final clubId = ref.read(clubIdProvider);
     if (clubId == null || !_valid) return;
@@ -253,8 +289,24 @@ class _SessionEditorScreenState extends ConsumerState<SessionEditorScreen> {
                   controller: _title,
                   textCapitalization: TextCapitalization.sentences,
                   decoration: const InputDecoration(labelText: 'Titre', hintText: 'ex. 10 × 400 m'),
-                  onChanged: (_) => _touch(),
+                  onChanged: (v) {
+                    _touch();
+                    _updateTitleSuggestion(v);
+                  },
                 ),
+                if (_titleSuggestion != null) ...[
+                  const SizedBox(height: 8),
+                  ActionChip(
+                    key: const Key('title-autofill-suggestion'),
+                    avatar: const Icon(Icons.auto_awesome, size: 16),
+                    label: Text(
+                      'Remplir le corps de séance (${_titleSuggestion!.length} '
+                      'exercice${_titleSuggestion!.length > 1 ? 's' : ''} détecté'
+                      '${_titleSuggestion!.length > 1 ? 's' : ''})',
+                    ),
+                    onPressed: _applyTitleSuggestion,
+                  ),
+                ],
                 if (!_d.isTemplate) ...[
                   const SizedBox(height: 16),
                   Text(_editing ? 'Groupe' : 'Groupe(s)', style: theme.textTheme.labelLarge),

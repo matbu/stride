@@ -13,6 +13,8 @@ class SessionCard extends StatelessWidget {
     this.groupName,
     this.onTap,
     this.compact = false,
+    this.done,
+    this.onToggleDone,
   });
 
   final PlannedSession session;
@@ -20,6 +22,12 @@ class SessionCard extends StatelessWidget {
   final String? groupName;
   final VoidCallback? onTap;
   final bool compact;
+
+  /// Null : pas d'indicateur « fait » (pas de contexte athlète). Sinon, l'état de complétion.
+  final bool? done;
+
+  /// Non null seulement pour l'athlète sur sa propre séance : un coach consulte, sans marquer.
+  final VoidCallback? onToggleDone;
 
   @override
   Widget build(BuildContext context) {
@@ -87,10 +95,30 @@ class SessionCard extends StatelessWidget {
                         ),
                 ),
               ),
+              if (done != null) _doneIndicator(theme),
             ],
           ),
         ),
       ),
+    );
+  }
+
+  Widget _doneIndicator(ThemeData theme) {
+    final icon = Icon(
+      done! ? Icons.check_circle : Icons.radio_button_unchecked,
+      color: done! ? Colors.green : theme.colorScheme.outline,
+      size: compact ? 18 : 22,
+    );
+    return Padding(
+      padding: const EdgeInsets.only(right: 4),
+      child: onToggleDone == null
+          ? Padding(padding: const EdgeInsets.all(8), child: icon)
+          : IconButton(
+              key: Key('done-toggle-${session.id}'),
+              tooltip: done! ? 'Marquer non faite' : 'Marquer faite',
+              icon: icon,
+              onPressed: onToggleDone,
+            ),
     );
   }
 }

@@ -103,6 +103,16 @@ class FakeSessions extends Fake implements SessionActions {
 
   @override
   Future<void> delete(String sessionId) async => deleted.add(sessionId);
+
+  final markedDone = <(String, String)>[];
+  final markedNotDone = <(String, String)>[];
+
+  @override
+  Future<void> markDone(String sessionId, String athleteId, {required String clubId}) async =>
+      markedDone.add((sessionId, athleteId));
+
+  @override
+  Future<void> markNotDone(String sessionId, String athleteId) async => markedNotDone.add((sessionId, athleteId));
 }
 
 class FakeClubActions extends Fake implements ClubActions {
@@ -185,6 +195,7 @@ List<Override> clubOverrides({
   Map<String, AthleteProfile> athleteProfiles = const {},
   Map<String, List<AthleteRecord>> athleteRecords = const {},
   FakeProfileActions? profileActions,
+  Map<String, Set<String>> completions = const {}, // athleteId -> session_id faits
 }) {
   final m = me ?? membership();
   return [
@@ -206,5 +217,6 @@ List<Override> clubOverrides({
     athleteProfileProvider.overrideWith((ref, id) => Stream.value(athleteProfiles[id])),
     athleteRecordsProvider.overrideWith((ref, id) => Stream.value(athleteRecords[id] ?? const [])),
     profileActionsProvider.overrideWithValue(profileActions ?? FakeProfileActions()),
+    completionsForAthleteProvider.overrideWith((ref, id) => Stream.value(completions[id] ?? const <String>{})),
   ];
 }

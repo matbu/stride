@@ -181,6 +181,18 @@ class SessionActions {
         await tx.execute('DELETE FROM session_blocks WHERE session_id = ?', [sessionId]);
         await tx.execute('DELETE FROM sessions WHERE id = ?', [sessionId]);
       });
+
+  /// Un athlète marque sa propre séance comme faite (façon Pronote). L'existence de la ligne
+  /// vaut « fait » ; un coach ne peut pas marquer à la place d'un athlète (RLS).
+  Future<void> markDone(String sessionId, String athleteId, {required String clubId}) => _db.execute(
+        'INSERT INTO session_completions (id, session_id, athlete_id, club_id) VALUES (?, ?, ?, ?)',
+        [_uuid.v4(), sessionId, athleteId, clubId],
+      );
+
+  Future<void> markNotDone(String sessionId, String athleteId) => _db.execute(
+        'DELETE FROM session_completions WHERE session_id = ? AND athlete_id = ?',
+        [sessionId, athleteId],
+      );
 }
 
 final sessionActionsProvider = Provider<SessionActions>(

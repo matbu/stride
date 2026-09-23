@@ -5,10 +5,13 @@ import '../../core/format.dart';
 import '../../core/notation.dart';
 import '../../data/models.dart';
 import '../../data/queries.dart';
+import '../../data/session_actions.dart';
+import '../common.dart';
 import 'block_card.dart';
 import 'session_badge.dart';
 
-/// Séance en lecture seule (vue athlète) : infos et contenu de chaque bloc.
+/// Séance en lecture seule (vue athlète) : infos et contenu de chaque bloc, plus le marquage
+/// « fait » façon Pronote (seul l'athlète le voit et le change, sur sa propre séance).
 class SessionDetailScreen extends ConsumerWidget {
   const SessionDetailScreen({super.key, required this.session, this.type, this.groupName});
 
@@ -27,8 +30,38 @@ class SessionDetailScreen extends ConsumerWidget {
     ].join(' · ');
     final volume = totalVolumeM(blocks.expand((b) => b.items));
 
+    final athlete = ref.watch(myAthleteProvider);
+    final done = athlete == null
+        ? false
+        : (ref.watch(completionsForAthleteProvider(athlete.id)).value ?? const <String>{}).contains(session.id);
+
     return Scaffold(
       appBar: AppBar(),
+      bottomNavigationBar: athlete == null
+          ? null
+          : SafeArea(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
+                child: FilledButton.icon(
+                  key: const Key('toggle-done'),
+                  style: done
+                      ? FilledButton.styleFrom(backgroundColor: Colors.green, foregroundColor: Colors.white)
+                      : null,
+                  icon: Icon(done ? Icons.check_circle : Icons.radio_button_unchecked),
+                  label: Text(done ? 'Séance faite' : 'Marquer comme faite'),
+                  onPressed: () {
+                    final clubId = ref.read(clubIdProvider);
+                    if (clubId == null) return;
+                    guarded(
+                      context,
+                      () => done
+                          ? ref.read(sessionActionsProvider).markNotDone(session.id, athlete.id)
+                          : ref.read(sessionActionsProvider).markDone(session.id, athlete.id, clubId: clubId),
+                    );
+                  },
+                ),
+              ),
+            ),
       body: Center(
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 720),

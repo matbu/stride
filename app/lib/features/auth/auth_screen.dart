@@ -80,7 +80,12 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
     return FormPage(
       children: [
         const SizedBox(height: 32),
-        Text('Coach', style: theme.textTheme.displaySmall?.copyWith(fontWeight: FontWeight.w700)),
+        ClipRRect(
+          borderRadius: BorderRadius.circular(20),
+          child: Image.asset('assets/images/logo.png', width: 88, height: 88),
+        ),
+        const SizedBox(height: 12),
+        Text('TrackClub', style: theme.textTheme.displaySmall?.copyWith(fontWeight: FontWeight.w700)),
         const SizedBox(height: 4),
         Text(
           _signUp ? 'Crée ton compte' : 'Connecte-toi pour retrouver tes séances',
