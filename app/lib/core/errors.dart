@@ -6,6 +6,7 @@ String humanError(Object error) {
   if (error is PostgrestException) {
     return _rpcMessages[error.message] ?? 'Une erreur est survenue (${error.message}).';
   }
+  if (error is StorageException) return 'Envoi impossible (${error.message}).';
   final text = error.toString();
   if (text.contains('SocketException') ||
       text.contains('ClientException') ||
