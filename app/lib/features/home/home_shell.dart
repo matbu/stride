@@ -6,8 +6,10 @@ import '../club/club_screen.dart';
 import '../club/profile_screen.dart';
 import '../library/library_screen.dart';
 import '../planning/week_screen.dart';
+import 'overview_screen.dart';
 
-/// Navigation principale. Coach : Semaine, Bibliothèque, Club. Athlète : Semaine, Profil.
+/// Navigation principale. Coach : Accueil, Semaine, Bibliothèque, Club. Athlète : Accueil,
+/// Semaine, Profil. Accueil est l'onglet par défaut, donc le premier écran après connexion.
 /// (Saison s'ajoutera ici quand elle existera.)
 class HomeShell extends ConsumerStatefulWidget {
   const HomeShell({super.key});
@@ -26,6 +28,7 @@ class _HomeShellState extends ConsumerState<HomeShell> {
       body: IndexedStack(
         index: _index,
         children: [
+          const OverviewScreen(),
           const WeekScreen(),
           if (isCoach) const LibraryScreen(),
           isCoach ? const ClubScreen() : const ProfileScreen(),
@@ -35,6 +38,11 @@ class _HomeShellState extends ConsumerState<HomeShell> {
         selectedIndex: _index,
         onDestinationSelected: (i) => setState(() => _index = i),
         destinations: [
+          const NavigationDestination(
+            icon: Icon(Icons.home_outlined),
+            selectedIcon: Icon(Icons.home),
+            label: 'Accueil',
+          ),
           const NavigationDestination(
             icon: Icon(Icons.calendar_view_week_outlined),
             selectedIcon: Icon(Icons.calendar_view_week),

@@ -8,6 +8,7 @@ import 'package:trackclub/data/models.dart';
 import 'package:trackclub/features/auth/auth_screen.dart';
 import 'package:trackclub/features/club/club_screen.dart';
 import 'package:trackclub/features/club/profile_screen.dart';
+import 'package:trackclub/features/home/overview_screen.dart';
 import 'package:trackclub/features/onboarding/join_club_screen.dart';
 import 'package:trackclub/features/onboarding/onboarding_screen.dart';
 import 'package:trackclub/features/planning/week_screen.dart';
@@ -74,6 +75,59 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.text('Séance sprint'), findsOneWidget);
       expect(find.text('Séance demi-fond'), findsNothing);
+    });
+  });
+
+  group('accueil', () {
+    testWidgets('un athlète sans séance aujourd’hui voit « Repos »', (tester) async {
+      final overrides = clubOverrides(me: membership(role: ClubRole.athlete));
+      await tester.pumpWidget(testApp(const OverviewScreen(), overrides: overrides));
+      await tester.pumpAndSettle();
+      expect(find.text('Repos'), findsOneWidget);
+    });
+
+    testWidgets('un athlète voit sa séance du jour', (tester) async {
+      const lea = Athlete(id: 'a1', fullName: 'Léa', userId: 'u-julie');
+      final overrides = clubOverrides(
+        me: membership(role: ClubRole.athlete),
+        athletes: const [lea],
+        links: {
+          'a1': {sprintGroup.id},
+        },
+        sessions: [
+          PlannedSession(id: 's1', typeId: fractionne.id, title: 'Ma séance', groupId: sprintGroup.id, date: today),
+        ],
+      );
+      await tester.pumpWidget(testApp(const OverviewScreen(), overrides: overrides));
+      await tester.pumpAndSettle();
+      expect(find.text('Ma séance'), findsOneWidget);
+      expect(find.text('Repos'), findsNothing);
+    });
+
+    testWidgets('un coach voit les séances du jour et prend les présences par groupe', (tester) async {
+      const lea = Athlete(id: 'a1', fullName: 'Léa Martin', userId: 'u3');
+      final fake = FakePlanning();
+      final overrides = clubOverrides(
+        athletes: const [lea],
+        links: {
+          'a1': {sprintGroup.id},
+        },
+        sessions: [
+          PlannedSession(id: 's1', typeId: fractionne.id, title: 'Séance du club', groupId: sprintGroup.id, date: today),
+        ],
+        planning: fake,
+      );
+      await tester.pumpWidget(testApp(const OverviewScreen(), overrides: overrides));
+      await tester.pumpAndSettle();
+      expect(find.text('Séance du club'), findsOneWidget);
+
+      await tester.tap(find.widgetWithText(ExpansionTile, 'Sprint'));
+      await tester.pumpAndSettle();
+      expect(find.text('Léa Martin'), findsOneWidget);
+
+      await tester.tap(find.byKey(const Key('present-Léa Martin')));
+      await tester.pump();
+      expect(fake.attendanceToggles, [(sprintGroup.id, 'a1', true)]);
     });
   });
 

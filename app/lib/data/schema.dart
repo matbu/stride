@@ -56,6 +56,15 @@ const schema = Schema([
     Column.text('session_id'),
     Column.text('athlete_id'),
   ]),
+  // Présence à l'entraînement, prise par un coach. Existence = « présent ».
+  Table('attendances', [
+    Column.text('club_id'),
+    Column.text('group_id'),
+    Column.text('athlete_id'),
+    Column.text('user_id'),
+    Column.text('date'),
+    Column.text('created_by'),
+  ]),
   Table('invitations', [
     Column.text('club_id'),
     Column.text('code'),

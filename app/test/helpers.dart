@@ -65,6 +65,7 @@ Widget testApp(Widget child, {List<Override> overrides = const []}) => ProviderS
 /// Faux accès en écriture (groupes, athlètes) : enregistre les appels au lieu de toucher une base.
 class FakePlanning extends Fake implements PlanningActions {
   final groupToggles = <(String, bool)>[];
+  final attendanceToggles = <(String groupId, String athleteId, bool present)>[];
 
   @override
   Future<void> setGroupMembership({
@@ -74,6 +75,17 @@ class FakePlanning extends Fake implements PlanningActions {
     required bool member,
   }) async {
     groupToggles.add((groupId, member));
+  }
+
+  @override
+  Future<void> setAttendance({
+    required String clubId,
+    required String groupId,
+    required String athleteId,
+    required String date,
+    required bool present,
+  }) async {
+    attendanceToggles.add((groupId, athleteId, present));
   }
 }
 
@@ -196,6 +208,8 @@ List<Override> clubOverrides({
   Map<String, List<AthleteRecord>> athleteRecords = const {},
   FakeProfileActions? profileActions,
   Map<String, Set<String>> completions = const {}, // athleteId -> session_id faits
+  Map<String, Set<String>> attendanceToday = const {}, // groupId -> athlete_id présents
+  Map<String, List<String>> attendanceDates = const {}, // athleteId -> dates de présence
 }) {
   final m = me ?? membership();
   return [
@@ -205,6 +219,7 @@ List<Override> clubOverrides({
     groupsProvider.overrideWith((ref) => Stream.value(groups)),
     sessionTypesProvider.overrideWith((ref) => Stream.value(types)),
     sessionsForWeekProvider.overrideWith((ref, monday) => Stream.value(sessions)),
+    sessionsForRangeProvider.overrideWith((ref, range) => Stream.value(sessions)),
     templatesProvider.overrideWith((ref) => Stream.value(templates)),
     blocksForSessionProvider.overrideWith((ref, id) => Stream.value(blocks[id] ?? const [])),
     membersProvider.overrideWith((ref) => Stream.value([m])),
@@ -218,5 +233,7 @@ List<Override> clubOverrides({
     athleteRecordsProvider.overrideWith((ref, id) => Stream.value(athleteRecords[id] ?? const [])),
     profileActionsProvider.overrideWithValue(profileActions ?? FakeProfileActions()),
     completionsForAthleteProvider.overrideWith((ref, id) => Stream.value(completions[id] ?? const <String>{})),
+    attendanceForDateProvider.overrideWith((ref, date) => Stream.value(attendanceToday)),
+    attendanceDatesForAthleteProvider.overrideWith((ref, id) => Stream.value(attendanceDates[id] ?? const <String>[])),
   ];
 }

@@ -476,6 +476,7 @@ class _AthleteSheet extends ConsumerWidget {
                 ),
             ],
           ),
+          _AttendanceSummary(athleteId: athlete.id),
           if (athlete.hasAccount) _AthleteProfilePreview(athleteId: athlete.id),
           if (!athlete.hasAccount) ...[
             const SizedBox(height: 24),
@@ -506,6 +507,26 @@ class _AthleteSheet extends ConsumerWidget {
             ),
           ],
         ],
+      ),
+    );
+  }
+}
+
+/// Présences à l'entraînement (prises depuis l'écran Accueil) : marche même sans compte lié.
+class _AttendanceSummary extends ConsumerWidget {
+  const _AttendanceSummary({required this.athleteId});
+  final String athleteId;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final theme = Theme.of(context);
+    final dates = ref.watch(attendanceDatesForAthleteProvider(athleteId)).value ?? const <String>[];
+    if (dates.isEmpty) return const SizedBox.shrink();
+    return Padding(
+      padding: const EdgeInsets.only(top: 12),
+      child: Text(
+        '${dates.length} présence${dates.length > 1 ? 's' : ''} · dernière le ${mediumDate(parseIsoDate(dates.first))}',
+        style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant),
       ),
     );
   }

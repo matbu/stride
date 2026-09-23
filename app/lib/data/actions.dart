@@ -136,6 +136,27 @@ class PlanningActions {
       );
     }
   }
+
+  /// Présence à l'entraînement, prise par un coach (voir `attendances`).
+  Future<void> setAttendance({
+    required String clubId,
+    required String groupId,
+    required String athleteId,
+    required String date,
+    required bool present,
+  }) async {
+    if (present) {
+      await _db.execute(
+        'INSERT INTO attendances (id, club_id, group_id, athlete_id, date) VALUES (?, ?, ?, ?, ?)',
+        [_uuid.v4(), clubId, groupId, athleteId, date],
+      );
+    } else {
+      await _db.execute(
+        'DELETE FROM attendances WHERE group_id = ? AND athlete_id = ? AND date = ?',
+        [groupId, athleteId, date],
+      );
+    }
+  }
 }
 
 class AccountActions {

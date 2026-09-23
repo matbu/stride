@@ -24,6 +24,7 @@ bucket_definitions:
       - SELECT * FROM athlete_profiles WHERE user_id = bucket.user_id
       - SELECT * FROM athlete_records WHERE user_id = bucket.user_id
       - SELECT * FROM session_completions WHERE user_id = bucket.user_id
+      - SELECT * FROM attendances WHERE user_id = bucket.user_id
 
   # Ce que voit tout membre actif d'un club.
   club_members:
@@ -50,6 +51,7 @@ bucket_definitions:
       - SELECT * FROM athlete_profiles WHERE club_id = bucket.club_id
       - SELECT * FROM athlete_records WHERE club_id = bucket.club_id
       - SELECT * FROM session_completions WHERE club_id = bucket.club_id
+      - SELECT * FROM attendances WHERE club_id = bucket.club_id
       - SELECT * FROM invitations WHERE club_id = bucket.club_id
       - SELECT * FROM sessions WHERE club_id = bucket.club_id
       - SELECT * FROM session_blocks WHERE club_id = bucket.club_id

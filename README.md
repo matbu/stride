@@ -156,8 +156,13 @@ tabulation (détecté), UTF-8 ou Windows-1252. Colonnes (ordre libre, accents et
 ## État actuel
 
 Fait, et vérifié par les tests (voir ci-dessus) :
-- Schéma, RLS, invitations, demandes d'adhésion, transfert de propriété (104 contrôles SQL).
+- Schéma, RLS, invitations, demandes d'adhésion, transfert de propriété (112 contrôles SQL).
 - Connexion / inscription, création ou adhésion à un club, écran d'attente.
+- **Accueil** (premier onglet, écran après connexion) : la séance du jour (les siennes pour un
+  athlète, toutes celles du club pour un coach), sinon « Repos ». Pour un coach en plus : la
+  présence à l'entraînement, par groupe (menu déroulant → liste d'athlètes → coche), prise le jour
+  même. Stockée en base (`attendances`), consultable ensuite depuis la fiche de chaque athlète
+  (écran Club) même s'il n'a pas encore de compte — c'est un coach qui la prend, pas l'athlète.
 - **Vue semaine** : téléphone (bande des jours + agenda) et **tablette / paysage (≥ 720 px) : 7 colonnes**,
   avec glisser-déposer d'une séance vers un autre jour (appui long) dans les deux dispositions, et
   suppression en la glissant vers la gauche (confirmation demandée).

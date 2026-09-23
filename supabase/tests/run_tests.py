@@ -270,6 +270,26 @@ check("un coach ne démarque pas à la place de l'athlète",
 run(lea, "delete from public.session_completions where session_id=%s and athlete_id=%s", (planned, lea_ath))
 check("un athlète démarque sa propre séance", count(lea, "session_completions", "session_id=%s", (planned,)) == 0)
 
+print("présence à l'entraînement")
+run(marc, "insert into public.attendances (group_id, athlete_id, date) values (%s, %s, '2026-09-23')", (sprint, lea_ath))
+check("club_id/user_id remplis par trigger sur la présence",
+      su("select club_id, user_id from public.attendances where group_id=%s and athlete_id=%s", (sprint, lea_ath)) == [(club, lea)])
+fails("un athlète ne prend pas les présences", lea,
+      "insert into public.attendances (group_id, athlete_id, date) values (%s, %s, '2026-09-23')", (sprint, tom_ath), "row-level security")
+check("un coach voit la présence", count(marc, "attendances") == 1)
+check("l'athlète concerné voit sa propre présence", count(lea, "attendances") == 1)
+check("un autre athlète ne la voit pas", count(tom, "attendances") == 0)
+
+noacct = su("insert into public.athletes (club_id, full_name) values (%s, 'Sans compte') returning id", (club,))[0][0]
+run(marc, "insert into public.attendances (group_id, athlete_id, date) values (%s, %s, '2026-09-23')", (sprint, noacct))
+check("présence acceptée pour un athlète sans compte, user_id reste null",
+      su("select user_id from public.attendances where athlete_id=%s", (noacct,)) == [(None,)])
+
+run(lea, "delete from public.attendances where group_id=%s and athlete_id=%s", (sprint, lea_ath))
+check("un athlète ne retire pas sa propre présence", count(marc, "attendances", "athlete_id=%s", (lea_ath,)) == 1)
+run(marc, "delete from public.attendances where group_id=%s and athlete_id=%s", (sprint, lea_ath))
+check("un coach retire une présence", count(marc, "attendances", "athlete_id=%s", (lea_ath,)) == 0)
+
 # Groupe vide : autorisé.
 run(marc, "insert into public.sessions (club_id, type_id, title, group_id, scheduled_date) values (%s, %s, 'Footing', %s, '2026-09-25')", (club, type_id, demi))
 check("séance sur un groupe vide autorisée", count(marc, "sessions", "group_id = %s", (demi,)) == 1)

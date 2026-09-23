@@ -143,6 +143,32 @@ final completionsForAthleteProvider = StreamProvider.family<Set<String>, String>
   ).map((rows) => rows.toSet());
 });
 
+/// group_id → ensemble des athlètes présents ce jour-là (existence de ligne = présent).
+final attendanceForDateProvider = StreamProvider.family<Map<String, Set<String>>, String>((ref, date) {
+  return _query(
+    ref,
+    'SELECT group_id, athlete_id FROM attendances WHERE date = ?',
+    [date],
+    (r) => (r['group_id'] as String, r['athlete_id'] as String),
+  ).map((rows) {
+    final map = <String, Set<String>>{};
+    for (final (groupId, athleteId) in rows) {
+      (map[groupId] ??= {}).add(athleteId);
+    }
+    return map;
+  });
+});
+
+/// Dates de présence d'un athlète, les plus récentes d'abord (historique consulté par un coach).
+final attendanceDatesForAthleteProvider = StreamProvider.family<List<String>, String>((ref, athleteId) {
+  return _query(
+    ref,
+    'SELECT date FROM attendances WHERE athlete_id = ? ORDER BY date DESC',
+    [athleteId],
+    (r) => r['date'] as String,
+  );
+});
+
 /// athlete_id → ensemble des groupes. Un coach reçoit tous les liens du club, un athlète
 /// uniquement les siens (règles de sync).
 final groupLinksProvider = StreamProvider<Map<String, Set<String>>>((ref) {
