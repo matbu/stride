@@ -177,6 +177,8 @@ Fait, et vérifié par les tests (voir ci-dessus) :
   titre qui contient juste des chiffres.
 - **Éditeur de séance par blocs** (échauffement / corps / retour au calme / autre) avec saisie rapide,
   aperçu en direct, exercices réordonnables, volume d'effort, enregistrement en une transaction locale.
+  Échauffement et retour au calme ont un contenu par défaut (20' et Étirements), modifiable ou
+  effaçable librement.
 - **Bibliothèque de modèles** : créer, modifier, supprimer, placer sur un jour pour un ou plusieurs
   groupes (chaque groupe reçoit sa propre copie), « enregistrer comme modèle » depuis une séance.
   Toute séance créée à la main (pas placée depuis un modèle existant) y est aussi ajoutée

@@ -77,13 +77,37 @@ void main() {
       expect(d.title, '10 × 400 + 3 × 300');
       expect(d.groupIds, {sprintGroup.id});
       expect(d.date, '2026-09-28');
-      expect(d.blocks, hasLength(1), reason: 'les blocs vides ne sont pas enregistrés');
-      expect(d.blocks.single.kind, BlockKind.main);
-      expect(d.blocks.single.items, [
+      // Échauffement et retour au calme ont un contenu par défaut, donc eux aussi enregistrés.
+      expect(d.blocks, hasLength(3));
+      final main = d.blocks.singleWhere((b) => b.kind == BlockKind.main);
+      expect(main.items, [
         const BlockItem(reps: 10, distanceM: 400, recoveryS: 60),
         const BlockItem(reps: 3, distanceM: 300, recoveryS: 60),
       ]);
       expect(find.byKey(const Key('session-save')), findsNothing, reason: 'l’éditeur se ferme');
+    });
+
+    testWidgets('échauffement et retour au calme ont un contenu par défaut', (tester) async {
+      tallScreen(tester);
+      final fake = FakeSessions();
+      await openEditor(tester, newSessionDraft(date: DateTime(2026, 9, 28)), clubOverrides(sessionActions: fake));
+
+      expect(find.text("20'"), findsOneWidget, reason: 'échauffement : 20 minutes');
+      expect(find.text('Étirements'), findsOneWidget, reason: 'retour au calme');
+
+      await tester.tap(find.byKey(const Key('type-Fractionné')));
+      await tester.enterText(find.byKey(const Key('session-title')), 'Séance');
+      await tester.pump();
+      await tester.tap(find.byKey(const Key('group-Sprint')));
+      await tester.pump();
+      await tester.tap(find.byKey(const Key('session-save')));
+      await tester.pumpAndSettle();
+
+      final d = fake.saved.single;
+      final warmup = d.blocks.singleWhere((b) => b.kind == BlockKind.warmup);
+      final cooldown = d.blocks.singleWhere((b) => b.kind == BlockKind.cooldown);
+      expect(warmup.items, [const BlockItem(durationS: 20 * 60)]);
+      expect(cooldown.items, [const BlockItem(note: 'Étirements')]);
     });
 
     testWidgets('les raccourcis du clavier insèrent au curseur', (tester) async {
