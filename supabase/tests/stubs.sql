@@ -54,6 +54,11 @@ language sql immutable as $$
   select (string_to_array(name, '/'))[1 : array_length(string_to_array(name, '/'), 1) - 1]
 $$;
 
+-- Sur un vrai projet Supabase, ces tables ont déjà les GRANTs table par table (indépendants du
+-- schéma `public`, donc pas couverts par le `alter default privileges` plus bas) : la RLS est ce
+-- qui protège, pas l'absence de droit.
+grant select, insert, update, delete on storage.objects, storage.buckets to anon, authenticated, service_role;
+
 grant usage on schema public, auth, extensions, storage to anon, authenticated, service_role;
 grant execute on function auth.uid() to anon, authenticated, service_role;
 

@@ -206,7 +206,15 @@ fails("un athlète ne crée pas le profil du club", lea, "insert into public.clu
 run(lea, "update public.club_profiles set description = 'piraté' where id = %s", (club,))
 check("un athlète ne modifie pas le profil du club", su("select description from public.club_profiles where id=%s", (club,))[0][0] == "Club ouvert à tous.")
 
+# Le service Storage fait un `RETURNING *` après l'INSERT : sans politique SELECT (en plus de
+# celle d'écriture), l'upload échoue avec la même erreur RLS générique — bug réel, découvert en
+# prod (voir la migration `storage_select_policy`).
+logo_obj = one(marc, "insert into storage.objects (bucket_id, name, owner) values ('club_logos', %s, %s) returning id", (f"{club}/logo.png", marc))
+check("upload du logo du club : la politique SELECT permet le RETURNING de l'INSERT", logo_obj is not None)
+
 print("profil athlète")
+avatar_obj = one(lea, "insert into storage.objects (bucket_id, name, owner) values ('avatars', %s, %s) returning id", (f"{lea}/avatar.jpg", lea))
+check("upload d'un avatar : la politique SELECT permet le RETURNING de l'INSERT", avatar_obj is not None)
 run(lea, "insert into public.athlete_profiles (id, bio, ffa_url) values (%s, 'Coureuse de fond', 'https://www.athle.fr/athletes/95743/records')", (lea_ath,))
 check("club_id/user_id remplis par trigger sur le profil",
       su("select club_id, user_id from public.athlete_profiles where id=%s", (lea_ath,)) == [(club, lea)])

@@ -10,6 +10,8 @@ Future<T?> guarded<T>(BuildContext context, Future<T> Function() action) async {
   try {
     return await action();
   } catch (e) {
+    // TEMPORAIRE (débogage upload logo/avatar) : à retirer une fois résolu.
+    debugPrint('[guarded] ${e.runtimeType}: $e');
     if (context.mounted) {
       ScaffoldMessenger.of(context)
         ..hideCurrentSnackBar()
