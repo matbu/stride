@@ -55,6 +55,7 @@ class SessionDraft {
     this.startTime,
     this.durationMin,
     this.templateId,
+    this.originalGroupId,
     List<BlockDraft>? blocks,
   })  : groupIds = groupIds ?? {},
         blocks = blocks ?? [BlockDraft(kind: BlockKind.main)];
@@ -68,6 +69,7 @@ class SessionDraft {
         date: s.date,
         startTime: s.startTime?.substring(0, 5),
         durationMin: s.durationMin,
+        originalGroupId: s.groupId,
         blocks: [],
       );
 
@@ -88,8 +90,14 @@ class SessionDraft {
   String title;
   String description;
 
-  /// Groupes cibles. Une création avec plusieurs groupes crée une séance par groupe.
+  /// Groupes cibles. Plusieurs groupes cochés → une séance par groupe (à la création, ou en
+  /// cochant un groupe de plus en édition : `id` reste associé à `originalGroupId`, les autres
+  /// groupes cochés reçoivent chacun une copie indépendante).
   final Set<String> groupIds;
+
+  /// Groupe d'origine de la séance éditée (null pour une création). Sert à savoir, si plusieurs
+  /// groupes sont cochés à l'enregistrement, laquelle des copies réutilise la ligne existante.
+  final String? originalGroupId;
 
   /// `yyyy-MM-dd`
   String? date;

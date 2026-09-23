@@ -179,6 +179,8 @@ Fait, et vérifié par les tests (voir ci-dessus) :
   aperçu en direct, exercices réordonnables, volume d'effort, enregistrement en une transaction locale.
   La saisie rapide suggère un exemple en filigrane adapté au bloc (« Footing 20' » pour
   l'échauffement, « Étirements » pour le retour au calme) — jamais pré-rempli, rien à effacer.
+  En édition, cocher un groupe de plus y place une copie indépendante de la séance (comme à la
+  création), sans désélectionner le groupe d'origine.
 - **Bibliothèque de modèles** : créer, modifier, supprimer, placer sur un jour pour un ou plusieurs
   groupes (chaque groupe reçoit sa propre copie), « enregistrer comme modèle » depuis une séance.
   Toute séance créée à la main (pas placée depuis un modèle existant) y est aussi ajoutée

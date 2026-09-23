@@ -311,7 +311,14 @@ class _SessionEditorScreenState extends ConsumerState<SessionEditorScreen> {
                 ],
                 if (!_d.isTemplate) ...[
                   const SizedBox(height: 16),
-                  Text(_editing ? 'Groupe' : 'Groupe(s)', style: theme.textTheme.labelLarge),
+                  Text('Groupe(s)', style: theme.textTheme.labelLarge),
+                  if (_editing) ...[
+                    const SizedBox(height: 2),
+                    Text(
+                      'Cocher un groupe de plus y place une copie de cette séance.',
+                      style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+                    ),
+                  ],
                   const SizedBox(height: 8),
                   if (groups.isEmpty)
                     Text(
@@ -329,11 +336,7 @@ class _SessionEditorScreenState extends ConsumerState<SessionEditorScreen> {
                             label: Text(g.name),
                             selected: _d.groupIds.contains(g.id),
                             onSelected: (on) {
-                              if (_editing) {
-                                _d.groupIds
-                                  ..clear()
-                                  ..add(g.id);
-                              } else if (on) {
+                              if (on) {
                                 _d.groupIds.add(g.id);
                               } else {
                                 _d.groupIds.remove(g.id);

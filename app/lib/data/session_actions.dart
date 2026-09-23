@@ -21,7 +21,10 @@ class SessionActions {
 
   /// Enregistre un brouillon.
   ///  * modèle : une ligne sans groupe ni date ;
-  ///  * séance existante : mise à jour, et blocs synchronisés (ajoutés, modifiés, supprimés) ;
+  ///  * séance existante : mise à jour, et blocs synchronisés (ajoutés, modifiés, supprimés).
+  ///    Cocher un groupe de plus crée une copie indépendante pour ce groupe (comme à la
+  ///    création) ; la ligne éditée reste associée à `originalGroupId` s'il est toujours coché,
+  ///    sinon à l'un des groupes cochés au hasard ;
   ///  * nouvelle séance : une séance par groupe coché, chacune avec sa copie des blocs. Si elle
   ///    n'a pas été placée depuis un modèle existant (`templateId` null), elle rejoint aussi la
   ///    bibliothèque automatiquement (une seule fois, même si plusieurs groupes sont cochés).
@@ -33,9 +36,16 @@ class SessionActions {
         await _writeSession(tx, id, d, clubId, isNew: d.id == null);
         await _writeBlocks(tx, id, clubId, null, d.blocks);
       } else if (d.id != null) {
-        final group = d.groupIds.single;
-        await _writeSession(tx, d.id!, d, clubId, groupId: group, isNew: false);
-        await _writeBlocks(tx, d.id!, clubId, group, d.blocks);
+        if (d.groupIds.isEmpty) throw ArgumentError('groupe manquant');
+        final keptGroup =
+            d.originalGroupId != null && d.groupIds.contains(d.originalGroupId) ? d.originalGroupId! : d.groupIds.first;
+        await _writeSession(tx, d.id!, d, clubId, groupId: keptGroup, isNew: false);
+        await _writeBlocks(tx, d.id!, clubId, keptGroup, d.blocks);
+        for (final group in d.groupIds.where((g) => g != keptGroup)) {
+          final id = _uuid.v4();
+          await _writeSession(tx, id, d, clubId, groupId: group, isNew: true);
+          await _writeBlocks(tx, id, clubId, group, [for (final b in d.blocks) b.copy(freshId: true)]);
+        }
       } else {
         if (d.groupIds.isEmpty) throw ArgumentError('groupe manquant');
         for (final group in d.groupIds) {

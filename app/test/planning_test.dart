@@ -161,6 +161,32 @@ void main() {
       expect(d.blocks.single.items, [const BlockItem(reps: 8, distanceM: 400, recoveryS: 60)]);
     });
 
+    testWidgets('en édition, cocher un second groupe l’ajoute sans désélectionner le premier', (tester) async {
+      tallScreen(tester);
+      final fake = FakeSessions();
+      const session = PlannedSession(
+        id: 's-42', typeId: 't-frac', title: 'Piste', groupId: 'g-sprint', date: '2026-09-28',
+      );
+      await openEditor(tester, SessionDraft.fromPlanned(session), clubOverrides(sessionActions: fake));
+
+      expect(tester.widget<FilterChip>(find.byKey(const Key('group-Sprint'))).selected, isTrue);
+      expect(tester.widget<FilterChip>(find.byKey(const Key('group-Demi-fond'))).selected, isFalse);
+
+      await tester.tap(find.byKey(const Key('group-Demi-fond')));
+      await tester.pump();
+
+      expect(
+        tester.widget<FilterChip>(find.byKey(const Key('group-Sprint'))).selected,
+        isTrue,
+        reason: 'le premier groupe reste coché',
+      );
+      expect(tester.widget<FilterChip>(find.byKey(const Key('group-Demi-fond'))).selected, isTrue);
+
+      await tester.tap(find.byKey(const Key('session-save')));
+      await tester.pumpAndSettle();
+      expect(fake.saved.single.groupIds, {sprintGroup.id, demiGroup.id});
+    });
+
     testWidgets('le titre en saisie rapide propose de remplir le corps de séance', (tester) async {
       tallScreen(tester);
       await openEditor(tester, newSessionDraft(), clubOverrides());
