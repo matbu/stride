@@ -22,7 +22,9 @@ class SessionActions {
   /// Enregistre un brouillon.
   ///  * modèle : une ligne sans groupe ni date ;
   ///  * séance existante : mise à jour, et blocs synchronisés (ajoutés, modifiés, supprimés) ;
-  ///  * nouvelle séance : une séance par groupe coché, chacune avec sa copie des blocs.
+  ///  * nouvelle séance : une séance par groupe coché, chacune avec sa copie des blocs. Si elle
+  ///    n'a pas été placée depuis un modèle existant (`templateId` null), elle rejoint aussi la
+  ///    bibliothèque automatiquement (une seule fois, même si plusieurs groupes sont cochés).
   Future<void> save(SessionDraft d, {required String clubId}) {
     if (d.typeId == null) throw ArgumentError('type manquant');
     return _db.writeTransaction((tx) async {
@@ -40,6 +42,20 @@ class SessionActions {
           final id = _uuid.v4();
           await _writeSession(tx, id, d, clubId, groupId: group, isNew: true);
           await _writeBlocks(tx, id, clubId, group, [for (final b in d.blocks) b.copy(freshId: true)]);
+        }
+        // Séance créée à la main (pas depuis un modèle existant) : elle rejoint aussi la
+        // bibliothèque, une seule fois même si placée pour plusieurs groupes à la fois.
+        if (d.templateId == null) {
+          final templateId = _uuid.v4();
+          final template = SessionDraft(
+            isTemplate: true,
+            typeId: d.typeId,
+            title: d.title,
+            description: d.description,
+            durationMin: d.durationMin,
+          );
+          await _writeSession(tx, templateId, template, clubId, isNew: true);
+          await _writeBlocks(tx, templateId, clubId, null, [for (final b in d.blocks) b.copy(freshId: true)]);
         }
       }
     });

@@ -179,6 +179,8 @@ Fait, et vérifié par les tests (voir ci-dessus) :
   aperçu en direct, exercices réordonnables, volume d'effort, enregistrement en une transaction locale.
 - **Bibliothèque de modèles** : créer, modifier, supprimer, placer sur un jour pour un ou plusieurs
   groupes (chaque groupe reçoit sa propre copie), « enregistrer comme modèle » depuis une séance.
+  Toute séance créée à la main (pas placée depuis un modèle existant) y est aussi ajoutée
+  automatiquement, une seule fois même si posée pour plusieurs groupes d'un coup.
 - **Import CSV** avec aperçu.
 - Fiche de séance en lecture seule pour les athlètes ; écran Club.
 - **Profil athlète** : photo (Supabase Storage, bucket `avatars`), description, lien vers la fiche
