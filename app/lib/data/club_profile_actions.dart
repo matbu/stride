@@ -1,5 +1,6 @@
 import 'dart:typed_data';
 
+import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:powersync/powersync.dart';
 import 'package:supabase_flutter/supabase_flutter.dart' show FileOptions, SupabaseClient;
@@ -24,6 +25,14 @@ class ClubProfileActions {
   /// normalement ensuite). `ext` sans le point, ex. `png`.
   Future<void> uploadLogo({required String clubId, required Uint8List bytes, required String ext}) async {
     final path = '$clubId/logo.$ext';
+    // TEMPORAIRE (débogage upload) : à retirer une fois le problème RLS résolu.
+    final auth = _client.storage.headers['Authorization'] ?? '<absent>';
+    debugPrint(
+      '[upload-debug] uid=${_client.auth.currentUser?.id} '
+      'session=${_client.auth.currentSession != null} '
+      'expired=${_client.auth.currentSession?.isExpired} '
+      'storageAuthHeader=${auth.substring(0, auth.length < 24 ? auth.length : 24)}…',
+    );
     await _client.storage.from('club_logos').uploadBinary(path, bytes, fileOptions: const FileOptions(upsert: true));
     await _db.execute(
       'INSERT INTO club_profiles (id, logo_path) VALUES (?, ?) '

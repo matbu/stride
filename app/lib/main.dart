@@ -36,8 +36,14 @@ Future<void> main() async {
 /// non par l'utilisateur. On republie donc nous-mêmes le jeton courant sur tous les
 /// sous-clients (dont `storage`) à chaque connexion/déconnexion/renouvellement.
 void _keepStorageAuthenticated(SupabaseClient client) {
-  client.auth.onAuthStateChange.listen((data) {
-    final token = data.session?.accessToken ?? Config.supabasePublishableKey;
+  void publish(String? accessToken) {
+    final token = accessToken ?? Config.supabasePublishableKey;
     client.headers = {...client.headers, 'Authorization': 'Bearer $token'};
-  });
+  }
+
+  // La session peut déjà avoir été restaurée (depuis le stockage persistant) au moment où on
+  // s'abonne : sans cette ligne, on rate l'évènement `initialSession` correspondant et l'en-tête
+  // reste figé sur la clé publique jusqu'au prochain renouvellement (~1h).
+  publish(client.auth.currentSession?.accessToken);
+  client.auth.onAuthStateChange.listen((data) => publish(data.session?.accessToken));
 }
