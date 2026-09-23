@@ -47,6 +47,15 @@ final clubProvider = StreamProvider<Club?>((ref) {
       .map((l) => l.firstOrNull);
 });
 
+/// Profil libre-service du club (description, logo) — visible de tout membre, modifiable par
+/// un coach (voir `ClubProfileActions`).
+final clubProfileProvider = StreamProvider<ClubProfile?>((ref) {
+  final clubId = ref.watch(clubIdProvider);
+  if (clubId == null) return Stream.value(null);
+  return _query(ref, 'SELECT * FROM club_profiles WHERE id = ?', [clubId], ClubProfile.fromRow)
+      .map((l) => l.firstOrNull);
+});
+
 // --- Référentiels du club -----------------------------------------------------------------
 
 final groupsProvider = StreamProvider<List<Group>>((ref) {

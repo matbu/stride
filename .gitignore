@@ -6,3 +6,4 @@ supabase/.branches/
 env
 .env
 .env.*
+scripts/admin/venv/

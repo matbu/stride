@@ -8,6 +8,8 @@ import 'package:powersync/powersync.dart';
 /// La colonne `id` est implicite.
 const schema = Schema([
   Table('clubs', [Column.text('name'), Column.text('created_by')]),
+  // `id` EST l'id du club (comme athlete_profiles avec l'athlète).
+  Table('club_profiles', [Column.text('description'), Column.text('logo_path')]),
   Table('memberships', [
     Column.text('club_id'),
     Column.text('user_id'),

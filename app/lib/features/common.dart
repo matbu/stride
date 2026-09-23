@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../core/errors.dart';
 import '../data/actions.dart';
+import '../data/club_profile_actions.dart';
 
 /// Exécute une action réseau ; en cas d'échec affiche un message lisible et renvoie null.
 Future<T?> guarded<T>(BuildContext context, Future<T> Function() action) async {
@@ -71,6 +72,23 @@ class FormPage extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+/// Logo du club (Supabase Storage, bucket `club_logos`), ou une icône générique si non défini.
+class ClubLogo extends ConsumerWidget {
+  const ClubLogo({super.key, required this.logoPath, this.radius = 16});
+  final String? logoPath;
+  final double radius;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    return CircleAvatar(
+      radius: radius,
+      backgroundImage:
+          logoPath == null ? null : NetworkImage(ref.read(clubProfileActionsProvider).logoUrl(logoPath!)),
+      child: logoPath == null ? Icon(Icons.shield_outlined, size: radius) : null,
     );
   }
 }

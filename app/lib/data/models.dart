@@ -55,6 +55,20 @@ class Club {
   final String name;
 }
 
+/// Profil libre-service du club (description, logo) — voir `club_profiles`. `clubId` EST l'id
+/// du club (relation 1:1, table d'extension, comme `AthleteProfile` avec l'athlète).
+class ClubProfile {
+  const ClubProfile({required this.clubId, this.description = '', this.logoPath});
+  factory ClubProfile.fromRow(DbRow r) => ClubProfile(
+        clubId: r['id'] as String,
+        description: (r['description'] as String?) ?? '',
+        logoPath: r['logo_path'] as String?,
+      );
+  final String clubId;
+  final String description;
+  final String? logoPath;
+}
+
 class Group {
   const Group({required this.id, required this.name});
   factory Group.fromRow(DbRow r) =>

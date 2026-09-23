@@ -32,6 +32,7 @@ class OverviewScreen extends ConsumerWidget {
     final groupLinks = ref.watch(groupLinksProvider).value ?? const <String, Set<String>>{};
     final allToday = ref.watch(sessionsForRangeProvider('$todayIso|$todayIso')).value ?? const <PlannedSession>[];
 
+    final clubProfile = ref.watch(clubProfileProvider).value;
     final attendance = ref.watch(attendanceForDateProvider(todayIso)).value ?? const <String, Set<String>>{};
     final myAthlete = ref.watch(myAthleteProvider);
     final sessionsToShow = isCoach
@@ -76,6 +77,20 @@ class OverviewScreen extends ConsumerWidget {
             const Text('TrackClub'),
           ],
         ),
+        actions: [
+          if (club != null)
+            Padding(
+              padding: const EdgeInsets.only(right: 16),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(club.name, style: theme.textTheme.titleSmall),
+                  const SizedBox(width: 8),
+                  ClubLogo(logoPath: clubProfile?.logoPath),
+                ],
+              ),
+            ),
+        ],
       ),
       body: ListView(
         padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),

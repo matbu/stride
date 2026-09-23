@@ -196,6 +196,9 @@ Fait, et vérifié par les tests (voir ci-dessus) :
   records personnels (entraînement / compétition non officielle, distincts des records FFA). Géré
   par l'athlète seul ; un coach le consulte en lecture seule depuis la fiche de l'athlète dans
   l'écran Club. Déconnexion.
+- **Profil du club** : logo (Supabase Storage, bucket `club_logos`) et description, gérés par un
+  coach depuis l'écran Club (section « Club », sous le nom du club et le rôle). Le logo apparaît
+  aussi en haut à droite de l'écran Accueil, avec le nom du club, pour tous les membres.
 - **Rappel de séance à 8h** (`core/notifications.dart`) : notification **locale** (programmée sur
   l'appareil, pas envoyée par un serveur) pour un athlète qui a une séance dans l'un de ses
   groupes, sur les 7 prochains jours. Reprogrammée à chaque changement de séances (tout annulé et

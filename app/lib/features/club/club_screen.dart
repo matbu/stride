@@ -1,16 +1,19 @@
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/format.dart';
 import '../../data/actions.dart';
+import '../../data/club_profile_actions.dart';
 import '../../data/models.dart';
 import '../../data/profile_actions.dart';
 import '../../data/queries.dart';
 import '../common.dart';
 import 'invite_dialog.dart';
 
-/// Gestion du club par les coachs : demandes, groupes, athlètes, coachs, invitations.
+/// Gestion du club par les coachs : demandes, profil du club (description, logo), groupes,
+/// athlètes, coachs, invitations.
 class ClubScreen extends ConsumerWidget {
   const ClubScreen({super.key});
 
@@ -52,6 +55,7 @@ class ClubScreen extends ConsumerWidget {
         padding: const EdgeInsets.fromLTRB(16, 0, 16, 32),
         children: [
           Text(me.role.label, style: Theme.of(context).textTheme.labelLarge),
+          _ClubProfileSection(club: club),
           if (requests.isNotEmpty) ...[
             const SectionHeader('Demandes en attente'),
             for (final r in requests)
@@ -426,6 +430,146 @@ class _RequestTile extends ConsumerWidget {
               )
             : null,
       ),
+    );
+  }
+}
+
+/// Profil libre-service du club (description, logo) — voir `ClubProfileActions`. Le logo
+/// apparaît aussi en haut de l'écran Accueil, pour tous les membres.
+class _ClubProfileSection extends ConsumerStatefulWidget {
+  const _ClubProfileSection({required this.club});
+  final Club club;
+
+  @override
+  ConsumerState<_ClubProfileSection> createState() => _ClubProfileSectionState();
+}
+
+class _ClubProfileSectionState extends ConsumerState<_ClubProfileSection> {
+  final _description = TextEditingController();
+  bool _fieldsSeeded = false;
+  bool _dirty = false;
+  bool _busy = false;
+  bool _uploadingLogo = false;
+
+  @override
+  void dispose() {
+    _description.dispose();
+    super.dispose();
+  }
+
+  /// La première valeur reçue du flux local initialise le champ ; ensuite c'est l'utilisateur
+  /// qui en a la main (sinon ses frappes seraient écrasées par chaque nouvelle valeur du flux).
+  void _seedFields(ClubProfile? profile) {
+    if (_fieldsSeeded) return;
+    _description.text = profile?.description ?? '';
+    _fieldsSeeded = true;
+  }
+
+  Future<void> _save() async {
+    setState(() => _busy = true);
+    await guarded(
+      context,
+      () => ref.read(clubProfileActionsProvider).saveDescription(
+            clubId: widget.club.id,
+            description: _description.text,
+          ),
+    );
+    if (mounted) setState(() => _busy = _dirty = false);
+  }
+
+  Future<void> _pickLogo() async {
+    final file = await guarded(context, () => FilePicker.pickFile(type: FileType.image));
+    if (file == null || !mounted) return;
+    final bytes = await guarded(context, file.readAsBytes);
+    if (bytes == null || !mounted) return;
+    setState(() => _uploadingLogo = true);
+    await guarded(
+      context,
+      () => ref.read(clubProfileActionsProvider).uploadLogo(
+            clubId: widget.club.id,
+            bytes: bytes,
+            ext: file.extension ?? 'png',
+          ),
+    );
+    if (mounted) setState(() => _uploadingLogo = false);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final profile = ref.watch(clubProfileProvider).value;
+    _seedFields(profile);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const SectionHeader('Club'),
+        Card(
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Stack(
+                      children: [
+                        ClubLogo(logoPath: profile?.logoPath, radius: 28),
+                        Positioned(
+                          right: -4,
+                          bottom: -4,
+                          child: IconButton.filled(
+                            key: const Key('pick-club-logo'),
+                            onPressed: _uploadingLogo ? null : _pickLogo,
+                            icon: _uploadingLogo
+                                ? const SizedBox(
+                                    width: 16,
+                                    height: 16,
+                                    child: CircularProgressIndicator(strokeWidth: 2),
+                                  )
+                                : const Icon(Icons.camera_alt_outlined, size: 18),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: Text(
+                        'Le logo apparaît en haut de l’écran Accueil, pour tous les membres.',
+                        style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                Text('Description', style: theme.textTheme.labelLarge),
+                const SizedBox(height: 4),
+                Text(
+                  'Présente le club en quelques mots — pourra être rendue publique plus tard.',
+                  style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+                ),
+                const SizedBox(height: 8),
+                TextField(
+                  key: const Key('club-description-field'),
+                  controller: _description,
+                  maxLines: 4,
+                  decoration: const InputDecoration(hintText: 'Ex. Club d’athlétisme ouvert à tous, de l’éveil…'),
+                  onChanged: (_) => setState(() => _dirty = true),
+                ),
+                if (_dirty)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 12),
+                    child: FilledButton(
+                      key: const Key('save-club-description'),
+                      onPressed: _busy ? null : _save,
+                      child: const Text('Enregistrer'),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ),
+      ],
     );
   }
 }

@@ -150,6 +150,15 @@ void main() {
       expect(find.text('Séance multi-groupes'), findsOneWidget, reason: 'une seule carte, pas une par groupe');
       expect(find.text('Sprint, Demi-fond'), findsOneWidget);
     });
+
+    testWidgets('affiche le nom du club en haut à droite, avec une place pour son logo', (tester) async {
+      await tester.pumpWidget(testApp(const OverviewScreen(), overrides: clubOverrides()));
+      await tester.pumpAndSettle();
+
+      final appBar = find.ancestor(of: find.text('AC Test'), matching: find.byType(AppBar));
+      expect(appBar, findsOneWidget);
+      expect(find.byIcon(Icons.shield_outlined), findsOneWidget, reason: 'pas encore de logo : icône générique');
+    });
   });
 
   group('club', () {
@@ -191,7 +200,7 @@ void main() {
       await tester.tap(find.byKey(const Key('approve-Léa')));
       expect(fake.approved, ['r2']);
       expect(find.textContaining('seul le super coach'), findsOneWidget);
-      await tester.scrollUntilVisible(find.text('Se déconnecter'), 300);
+      await tester.scrollUntilVisible(find.text('Se déconnecter'), 300, scrollable: find.byType(Scrollable).first);
       expect(find.text('Quitter le club'), findsOneWidget, reason: 'un coach peut partir');
     });
 
@@ -199,7 +208,7 @@ void main() {
       await tester.pumpWidget(testApp(const ClubScreen(), overrides: clubOverrides()));
       await tester.pumpAndSettle();
       // On descend jusqu'au pied de page : sans cela, l'absence pourrait venir de la liste paresseuse.
-      await tester.scrollUntilVisible(find.text('Se déconnecter'), 300);
+      await tester.scrollUntilVisible(find.text('Se déconnecter'), 300, scrollable: find.byType(Scrollable).first);
       expect(find.text('Quitter le club'), findsNothing);
     });
 
@@ -215,6 +224,7 @@ void main() {
 
       expect(find.text('2 athlètes'), findsOneWidget, reason: 'Sprint compte Léa et Tom');
       expect(find.text('1 athlète'), findsOneWidget, reason: 'Demi-fond compte Tom seul');
+      await tester.scrollUntilVisible(find.text('Compte lié · 1 groupe'), 300, scrollable: find.byType(Scrollable).first);
       expect(find.text('Compte lié · 1 groupe'), findsOneWidget);
       expect(find.text('Pas encore de compte · 2 groupes'), findsOneWidget);
     });
@@ -232,12 +242,31 @@ void main() {
       await tester.pumpWidget(testApp(const ClubScreen(), overrides: overrides));
       await tester.pumpAndSettle();
 
+      await tester.scrollUntilVisible(find.text('Léa Martin'), 300, scrollable: find.byType(Scrollable).first);
       await tester.tap(find.text('Léa Martin'));
       await tester.pumpAndSettle();
 
       expect(find.text('Toujours partante pour un footing.'), findsOneWidget);
       expect(find.text('10 km — 38:12'), findsOneWidget);
       expect(find.byIcon(Icons.delete_outline), findsNothing, reason: 'lecture seule pour le coach');
+    });
+
+    testWidgets('modifier la description du club l’enregistre', (tester) async {
+      final fake = FakeClubProfileActions();
+      final overrides = clubOverrides(clubProfileActions: fake);
+      await tester.pumpWidget(testApp(const ClubScreen(), overrides: overrides));
+      await tester.pumpAndSettle();
+
+      expect(find.byKey(const Key('save-club-description')), findsNothing, reason: 'rien à enregistrer avant frappe');
+      await tester.enterText(
+        find.byKey(const Key('club-description-field')),
+        'Club ouvert à tous, de l’éveil athlétique aux masters.',
+      );
+      await tester.pump();
+      await tester.tap(find.byKey(const Key('save-club-description')));
+      await tester.pumpAndSettle();
+
+      expect(fake.savedDescriptions, ['Club ouvert à tous, de l’éveil athlétique aux masters.']);
     });
   });
 

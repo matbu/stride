@@ -198,6 +198,14 @@ fails("un athlète n'inscrit pas un autre athlète", lea, "insert into public.gr
 check("un athlète ne voit que sa fiche", count(lea, "athletes") == 1)
 check("un coach voit toutes les fiches", count(marc, "athletes") == 4)
 
+print("profil du club")
+run(marc, "insert into public.club_profiles (id, description) values (%s, 'Club ouvert à tous.')", (club,))
+check("un coach crée/modifie le profil du club", su("select description from public.club_profiles where id=%s", (club,))[0][0] == "Club ouvert à tous.")
+check("un athlète voit le profil du club (logo/description affichés à tous)", count(lea, "club_profiles") == 1)
+fails("un athlète ne crée pas le profil du club", lea, "insert into public.club_profiles (id, description) values (%s, 'piraté')", (club,), "row-level security")
+run(lea, "update public.club_profiles set description = 'piraté' where id = %s", (club,))
+check("un athlète ne modifie pas le profil du club", su("select description from public.club_profiles where id=%s", (club,))[0][0] == "Club ouvert à tous.")
+
 print("profil athlète")
 run(lea, "insert into public.athlete_profiles (id, bio, ffa_url) values (%s, 'Coureuse de fond', 'https://www.athle.fr/athletes/95743/records')", (lea_ath,))
 check("club_id/user_id remplis par trigger sur le profil",
@@ -297,6 +305,7 @@ check("séance sur un groupe vide autorisée", count(marc, "sessions", "group_id
 print("isolation entre clubs")
 other = one(nina, "select public.create_club(%s)", ("Autre Club",))
 check("club B invisible depuis A", count(marc, "clubs") == 1 and count(nina, "clubs") == 1)
+check("profil du club A invisible depuis B", count(nina, "club_profiles") == 0)
 check("séances du club A invisibles depuis B", count(nina, "sessions") == 0)
 fails("insérer dans le club A depuis B", nina, "insert into public.training_groups (club_id, name) values (%s, 'pirate')", (club,), "row-level security")
 fails("séance de B avec un type de A", nina, "insert into public.sessions (club_id, type_id, title, is_template) values (%s, %s, 'x', true)", (other, type_id), "type_not_in_club")

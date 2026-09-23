@@ -31,6 +31,7 @@ bucket_definitions:
     parameters: SELECT club_id FROM memberships WHERE user_id = request.user_id() AND status = 'active'
     data:
       - SELECT * FROM clubs WHERE id = bucket.club_id
+      - SELECT * FROM club_profiles WHERE id = bucket.club_id
       - SELECT * FROM memberships WHERE club_id = bucket.club_id AND status = 'active'
       - SELECT * FROM training_groups WHERE club_id = bucket.club_id
       - SELECT * FROM session_types WHERE club_id = bucket.club_id

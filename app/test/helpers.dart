@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart' show Fake, WidgetTester, addTearDown;
 import 'package:flutter_localizations/flutter_localizations.dart';
@@ -7,6 +9,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'package:trackclub/core/theme.dart';
 import 'package:trackclub/data/actions.dart';
+import 'package:trackclub/data/club_profile_actions.dart';
 import 'package:trackclub/data/database.dart';
 import 'package:trackclub/data/drafts.dart';
 import 'package:trackclub/data/models.dart';
@@ -189,6 +192,24 @@ class FakeProfileActions extends Fake implements ProfileActions {
   String avatarUrl(String path) => 'https://example.test/$path';
 }
 
+class FakeClubProfileActions extends Fake implements ClubProfileActions {
+  final savedDescriptions = <String>[];
+  final uploadedLogos = <String>[]; // club ids
+
+  @override
+  Future<void> saveDescription({required String clubId, required String description}) async {
+    savedDescriptions.add(description.trim());
+  }
+
+  @override
+  Future<void> uploadLogo({required String clubId, required Uint8List bytes, required String ext}) async {
+    uploadedLogos.add(clubId);
+  }
+
+  @override
+  String logoUrl(String path) => 'https://example.test/$path';
+}
+
 const seuil = SessionType(id: 't-seuil', name: 'Seuil / Tempo', color: Color(0xFFF5A524), icon: 'speed');
 
 List<Override> clubOverrides({
@@ -210,12 +231,16 @@ List<Override> clubOverrides({
   Map<String, Set<String>> completions = const {}, // athleteId -> session_id faits
   Map<String, Set<String>> attendanceToday = const {}, // groupId -> athlete_id présents
   Map<String, List<String>> attendanceDates = const {}, // athleteId -> dates de présence
+  ClubProfile? clubProfile,
+  FakeClubProfileActions? clubProfileActions,
 }) {
   final m = me ?? membership();
   return [
     userProvider.overrideWithValue(testUser),
     myMembershipsProvider.overrideWith((ref) => Stream.value([m])),
     clubProvider.overrideWith((ref) => Stream.value(const Club(id: 'c1', name: 'AC Test'))),
+    clubProfileProvider.overrideWith((ref) => Stream.value(clubProfile)),
+    clubProfileActionsProvider.overrideWithValue(clubProfileActions ?? FakeClubProfileActions()),
     groupsProvider.overrideWith((ref) => Stream.value(groups)),
     sessionTypesProvider.overrideWith((ref) => Stream.value(types)),
     sessionsForWeekProvider.overrideWith((ref, monday) => Stream.value(sessions)),
