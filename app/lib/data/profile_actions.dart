@@ -34,7 +34,9 @@ class ProfileActions {
   }
 
   /// Envoie la photo vers Supabase Storage puis enregistre son chemin (qui, lui, se synchronise
-  /// normalement ensuite). `ext` sans le point, ex. `jpg`.
+  /// normalement ensuite). `ext` sans le point, ex. `jpg`. Le chemin inclut un horodatage : un
+  /// remplacement au même chemin garderait la même URL publique, et l'image resterait affichée
+  /// depuis le cache réseau de Flutter même après un nouvel envoi.
   Future<void> uploadAvatar({
     required String athleteId,
     required String clubId,
@@ -42,15 +44,24 @@ class ProfileActions {
     required String ext,
   }) async {
     final uid = _client.auth.currentUser!.id;
-    final path = '$uid/avatar.$ext';
+    final existing = await _db.getAll('SELECT avatar_path FROM athlete_profiles WHERE id = ?', [athleteId]);
+    final oldPath = existing.isEmpty ? null : existing.first['avatar_path'] as String?;
+    final path = '$uid/avatar_${DateTime.now().millisecondsSinceEpoch}.$ext';
     await _client.storage.from('avatars').uploadBinary(path, bytes, fileOptions: const FileOptions(upsert: true));
-    if (await _hasProfile(athleteId)) {
-      await _db.execute('UPDATE athlete_profiles SET avatar_path = ? WHERE id = ?', [path, athleteId]);
-    } else {
+    if (existing.isEmpty) {
       await _db.execute(
         'INSERT INTO athlete_profiles (id, club_id, avatar_path) VALUES (?, ?, ?)',
         [athleteId, clubId, path],
       );
+    } else {
+      await _db.execute('UPDATE athlete_profiles SET avatar_path = ? WHERE id = ?', [path, athleteId]);
+    }
+    if (oldPath != null) {
+      try {
+        await _client.storage.from('avatars').remove([oldPath]);
+      } catch (_) {
+        // Best effort : un fichier orphelin ne gêne pas, l'important est la nouvelle photo.
+      }
     }
   }
 

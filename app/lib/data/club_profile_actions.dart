@@ -23,14 +23,25 @@ class ClubProfileActions {
   }
 
   /// Envoie le logo vers Supabase Storage puis enregistre son chemin (qui, lui, se synchronise
-  /// normalement ensuite). `ext` sans le point, ex. `png`.
+  /// normalement ensuite). `ext` sans le point, ex. `png`. Le chemin inclut un horodatage : un
+  /// remplacement au même chemin garderait la même URL publique, et l'image resterait affichée
+  /// depuis le cache réseau de Flutter même après un nouvel envoi.
   Future<void> uploadLogo({required String clubId, required Uint8List bytes, required String ext}) async {
-    final path = '$clubId/logo.$ext';
+    final existing = await _db.getAll('SELECT logo_path FROM club_profiles WHERE id = ?', [clubId]);
+    final oldPath = existing.isEmpty ? null : existing.first['logo_path'] as String?;
+    final path = '$clubId/logo_${DateTime.now().millisecondsSinceEpoch}.$ext';
     await _client.storage.from('club_logos').uploadBinary(path, bytes, fileOptions: const FileOptions(upsert: true));
-    if (await _hasProfile(clubId)) {
-      await _db.execute('UPDATE club_profiles SET logo_path = ? WHERE id = ?', [path, clubId]);
-    } else {
+    if (existing.isEmpty) {
       await _db.execute('INSERT INTO club_profiles (id, logo_path) VALUES (?, ?)', [clubId, path]);
+    } else {
+      await _db.execute('UPDATE club_profiles SET logo_path = ? WHERE id = ?', [path, clubId]);
+    }
+    if (oldPath != null) {
+      try {
+        await _client.storage.from('club_logos').remove([oldPath]);
+      } catch (_) {
+        // Best effort : un fichier orphelin ne gêne pas, l'important est le nouveau logo.
+      }
     }
   }
 
