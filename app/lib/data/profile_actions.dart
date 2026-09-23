@@ -17,13 +17,20 @@ class ProfileActions {
   final SupabaseClient _client;
   final PowerSyncDatabase _db;
 
-  Future<void> saveProfile({required String athleteId, required String clubId, String? bio, String? ffaUrl}) {
+  Future<void> saveProfile({required String athleteId, required String clubId, String? bio, String? ffaUrl}) async {
     final trimmedUrl = ffaUrl?.trim();
-    return _db.execute(
-      'INSERT INTO athlete_profiles (id, club_id, bio, ffa_url) VALUES (?, ?, ?, ?) '
-      'ON CONFLICT(id) DO UPDATE SET bio = excluded.bio, ffa_url = excluded.ffa_url',
-      [athleteId, clubId, bio?.trim() ?? '', (trimmedUrl == null || trimmedUrl.isEmpty) ? null : trimmedUrl],
-    );
+    final ffa = (trimmedUrl == null || trimmedUrl.isEmpty) ? null : trimmedUrl;
+    if (await _hasProfile(athleteId)) {
+      await _db.execute(
+        'UPDATE athlete_profiles SET bio = ?, ffa_url = ? WHERE id = ?',
+        [bio?.trim() ?? '', ffa, athleteId],
+      );
+    } else {
+      await _db.execute(
+        'INSERT INTO athlete_profiles (id, club_id, bio, ffa_url) VALUES (?, ?, ?, ?)',
+        [athleteId, clubId, bio?.trim() ?? '', ffa],
+      );
+    }
   }
 
   /// Envoie la photo vers Supabase Storage puis enregistre son chemin (qui, lui, se synchronise
@@ -37,12 +44,21 @@ class ProfileActions {
     final uid = _client.auth.currentUser!.id;
     final path = '$uid/avatar.$ext';
     await _client.storage.from('avatars').uploadBinary(path, bytes, fileOptions: const FileOptions(upsert: true));
-    await _db.execute(
-      'INSERT INTO athlete_profiles (id, club_id, avatar_path) VALUES (?, ?, ?) '
-      'ON CONFLICT(id) DO UPDATE SET avatar_path = excluded.avatar_path',
-      [athleteId, clubId, path],
-    );
+    if (await _hasProfile(athleteId)) {
+      await _db.execute('UPDATE athlete_profiles SET avatar_path = ? WHERE id = ?', [path, athleteId]);
+    } else {
+      await _db.execute(
+        'INSERT INTO athlete_profiles (id, club_id, avatar_path) VALUES (?, ?, ?)',
+        [athleteId, clubId, path],
+      );
+    }
   }
+
+  /// La base locale expose chaque table comme une vue (PowerSync) : SQLite refuse l'upsert
+  /// (`ON CONFLICT ... DO UPDATE`) dessus (« cannot UPSERT a view ») — il faut vérifier
+  /// l'existence de la ligne nous-mêmes puis choisir INSERT ou UPDATE.
+  Future<bool> _hasProfile(String athleteId) async =>
+      (await _db.getAll('SELECT 1 FROM athlete_profiles WHERE id = ?', [athleteId])).isNotEmpty;
 
   String avatarUrl(String path) => _client.storage.from('avatars').getPublicUrl(path);
 
