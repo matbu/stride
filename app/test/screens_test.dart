@@ -70,7 +70,7 @@ void main() {
       expect(find.text('Séance sprint'), findsOneWidget);
       expect(find.text('Séance demi-fond'), findsOneWidget);
 
-      await tester.tap(find.widgetWithText(ChoiceChip, 'Sprint'));
+      await tester.tap(find.descendant(of: find.byKey(const Key('filter-group-Sprint')), matching: find.text('Sprint')));
       await tester.pumpAndSettle();
       expect(find.text('Séance sprint'), findsOneWidget);
       expect(find.text('Séance demi-fond'), findsNothing);

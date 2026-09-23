@@ -21,9 +21,10 @@ const weekColumnsMinWidth = 720.0;
 ///  * Tablette : 7 colonnes. Mêmes gestes, directement d'une colonne à l'autre.
 ///  * Vue mois : grille façon Google Calendar, juste des pastilles ; toucher un jour revient
 ///    à l'agenda de ce jour.
-///  * Filtre coach (bande de chips) : Tous / un groupe / un athlète (mutuellement exclusifs).
-///    Filtrer par athlète restreint aux groupes de cet athlète et affiche son statut « fait /
-///    non fait » (lecture seule pour le coach — façon Pronote, seul l'athlète le marque).
+///  * Filtre coach (bande de chips) : Tous, ou un groupe. Chaque chip de groupe a un menu
+///    déroulant (« Tous » + les athlètes du groupe) pour n'afficher que le statut « fait / non
+///    fait » d'un athlète (lecture seule pour le coach — façon Pronote, seul l'athlète le
+///    marque) — pas de liste plate de tous les athlètes du club, invivable pour un gros effectif.
 class WeekScreen extends ConsumerStatefulWidget {
   const WeekScreen({super.key});
 
@@ -54,9 +55,12 @@ class _WeekScreenState extends ConsumerState<WeekScreen> {
         _athleteFilter = null;
       });
 
-  void _setAthleteFilter(String? id) => setState(() {
-        _athleteFilter = id;
-        _groupFilter = null;
+  /// Choisi depuis le menu déroulant d'un chip de groupe : `athleteId` null = « Tous » (rien
+  /// à filtrer de plus que le groupe). Un athlète ne réduit pas la liste des séances (déjà
+  /// celles du groupe) : il choisit de qui on affiche le statut fait / non fait.
+  void _setGroupAthleteFilter(String groupId, String? athleteId) => setState(() {
+        _groupFilter = groupId;
+        _athleteFilter = athleteId;
       });
 
   @override
@@ -68,11 +72,7 @@ class _WeekScreenState extends ConsumerState<WeekScreen> {
     final types = {for (final t in ref.watch(sessionTypesProvider).value ?? const <SessionType>[]) t.id: t};
     final groupNames = {for (final g in groups) g.id: g.name};
     final all = ref.watch(sessionsForWeekProvider(isoDate(_monday))).value ?? const <PlannedSession>[];
-    final sessions = _groupFilter != null
-        ? all.where((s) => s.groupId == _groupFilter).toList()
-        : _athleteFilter != null
-            ? all.where((s) => (groupLinks[_athleteFilter] ?? const <String>{}).contains(s.groupId)).toList()
-            : all;
+    final sessions = _groupFilter == null ? all : all.where((s) => s.groupId == _groupFilter).toList();
     final today = dateOnly(DateTime.now());
 
     // Le suivi « fait / non fait » : le sien pour un athlète, celui de l'athlète filtré pour un
@@ -171,7 +171,7 @@ class _WeekScreenState extends ConsumerState<WeekScreen> {
                 onSelect: (d) => setState(() => _selected = d),
                 onDrop: moveToDay,
               ),
-            if (isCoach && (groups.isNotEmpty || athletes.isNotEmpty))
+            if (isCoach && groups.isNotEmpty)
               SizedBox(
                 height: 48,
                 child: ListView(
@@ -187,14 +187,16 @@ class _WeekScreenState extends ConsumerState<WeekScreen> {
                       }),
                     ),
                     for (final g in groups)
-                      _FilterChip(label: g.name, selected: _groupFilter == g.id, onTap: () => _setGroupFilter(g.id)),
-                    for (final a in athletes)
-                      _FilterChip(
-                        key: Key('filter-athlete-${a.fullName}'),
-                        label: a.fullName,
-                        icon: Icons.person_outline,
-                        selected: _athleteFilter == a.id,
-                        onTap: () => _setAthleteFilter(a.id),
+                      _GroupFilterChip(
+                        key: Key('filter-group-${g.name}'),
+                        groupName: g.name,
+                        label: _groupFilter == g.id && _athleteFilter != null
+                            ? '${g.name} · ${_athleteName(athletes, _athleteFilter!)}'
+                            : g.name,
+                        selected: _groupFilter == g.id,
+                        athletes: athletes.where((a) => (groupLinks[a.id] ?? const <String>{}).contains(g.id)).toList(),
+                        onSelectGroup: () => _setGroupFilter(g.id),
+                        onSelectAthlete: (athleteId) => _setGroupAthleteFilter(g.id, athleteId),
                       ),
                   ],
                 ),
@@ -209,8 +211,6 @@ class _WeekScreenState extends ConsumerState<WeekScreen> {
                         today: today,
                         types: types,
                         groupFilter: _groupFilter,
-                        athleteFilter: _athleteFilter,
-                        groupLinks: groupLinks,
                         onSelectDay: (d) => setState(() {
                           _selected = d;
                           _monthView = false;
@@ -286,22 +286,89 @@ Widget _deleteBackground(ThemeData theme) => Container(
     );
 
 class _FilterChip extends StatelessWidget {
-  const _FilterChip({super.key, required this.label, required this.selected, required this.onTap, this.icon});
+  const _FilterChip({required this.label, required this.selected, required this.onTap});
   final String label;
   final bool selected;
   final VoidCallback onTap;
-  final IconData? icon;
 
   @override
   Widget build(BuildContext context) => Padding(
         padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
         child: ChoiceChip(
-          avatar: icon == null ? null : Icon(icon, size: 18),
           label: Text(label),
           selected: selected,
           onSelected: (_) => onTap(),
         ),
       );
+}
+
+String _athleteName(List<Athlete> athletes, String id) {
+  for (final a in athletes) {
+    if (a.id == id) return a.fullName;
+  }
+  return '';
+}
+
+/// Chip de groupe avec un menu déroulant pour restreindre à un athlète de ce groupe (son statut
+/// fait / non fait) sans lister tous les athlètes du club au même niveau — invivable à 150.
+class _GroupFilterChip extends StatelessWidget {
+  const _GroupFilterChip({
+    super.key,
+    required this.groupName,
+    required this.label,
+    required this.selected,
+    required this.athletes,
+    required this.onSelectGroup,
+    required this.onSelectAthlete,
+  });
+
+  /// Nom du groupe : stable, sert de clé (contrairement à `label`, qui varie avec l'athlète choisi).
+  final String groupName;
+  final String label;
+  final bool selected;
+  final List<Athlete> athletes;
+  final VoidCallback onSelectGroup;
+  final ValueChanged<String?> onSelectAthlete;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final fg = selected ? theme.colorScheme.onSecondaryContainer : theme.colorScheme.onSurfaceVariant;
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
+      child: Material(
+        color: selected ? theme.colorScheme.secondaryContainer : theme.colorScheme.surfaceContainerHighest,
+        shape: const StadiumBorder(),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            InkWell(
+              customBorder: const StadiumBorder(),
+              onTap: onSelectGroup,
+              child: Padding(
+                padding: EdgeInsets.fromLTRB(12, 8, athletes.isEmpty ? 12 : 2, 8),
+                child: Text(label, style: theme.textTheme.labelLarge?.copyWith(color: fg)),
+              ),
+            ),
+            if (athletes.isNotEmpty)
+              PopupMenuButton<String?>(
+                key: Key('filter-athlete-menu-$groupName'),
+                tooltip: 'Filtrer par athlète',
+                onSelected: onSelectAthlete,
+                itemBuilder: (context) => [
+                  const PopupMenuItem(value: null, child: Text('Tous')),
+                  for (final a in athletes) PopupMenuItem(value: a.id, child: Text(a.fullName)),
+                ],
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(0, 8, 10, 8),
+                  child: Icon(Icons.arrow_drop_down, color: fg),
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
 }
 
 // --- Téléphone -----------------------------------------------------------------------------

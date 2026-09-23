@@ -600,13 +600,17 @@ void main() {
       expect(find.text('Séance sprint'), findsOneWidget);
       expect(find.text('Séance demi-fond'), findsOneWidget);
 
-      // La rangée de filtres défile horizontalement : le chip athlète peut être hors viewport.
-      await tester.drag(find.text('Tous'), const Offset(-400, 0));
-      await tester.pump();
-      await tester.tap(find.byKey(const Key('filter-athlete-Léa Martin')));
+      // On filtre d'abord par groupe (chip), puis on affine par athlète via son menu déroulant
+      // (pas de liste plate de tous les athlètes du club, invivable à 150).
+      await tester.tap(find.descendant(of: find.byKey(const Key('filter-group-Sprint')), matching: find.text('Sprint')));
       await tester.pumpAndSettle();
       expect(find.text('Séance sprint'), findsOneWidget);
-      expect(find.text('Séance demi-fond'), findsNothing, reason: 'Léa n’est pas dans ce groupe');
+      expect(find.text('Séance demi-fond'), findsNothing, reason: 'hors du groupe Sprint');
+
+      await tester.tap(find.byKey(const Key('filter-athlete-menu-Sprint')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Léa Martin').last);
+      await tester.pumpAndSettle();
       expect(find.byIcon(Icons.check_circle), findsOneWidget, reason: 'marquée faite par Léa');
       expect(find.byKey(const Key('done-toggle-s1')), findsNothing, reason: 'lecture seule pour un coach');
     });

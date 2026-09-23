@@ -86,11 +86,13 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
         ),
         const SizedBox(height: 12),
         Text('TrackClub', style: theme.textTheme.displaySmall?.copyWith(fontWeight: FontWeight.w700)),
-        const SizedBox(height: 4),
-        Text(
-          _signUp ? 'Crée ton compte' : 'Connecte-toi pour retrouver tes séances',
-          style: theme.textTheme.bodyLarge?.copyWith(color: theme.colorScheme.onSurfaceVariant),
-        ),
+        if (_signUp) ...[
+          const SizedBox(height: 4),
+          Text(
+            'Crée ton compte',
+            style: theme.textTheme.bodyLarge?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+          ),
+        ],
         const SizedBox(height: 32),
         Form(
           key: _formKey,

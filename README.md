@@ -163,10 +163,10 @@ Fait, et vérifié par les tests (voir ci-dessus) :
   suppression en la glissant vers la gauche (confirmation demandée).
 - **Vue mois** (bouton calendrier dans l'AppBar) : grille façon Google Calendar avec pastilles de
   couleur par type ; toucher un jour revient à l'agenda de ce jour.
-- **Filtre coach** (vue semaine et mois) : Tous / un groupe / un athlète. Filtrer par athlète
-  restreint à ses groupes et affiche son statut **fait / non fait** par séance (façon Pronote —
-  seul l'athlète le marque, un coach consulte en lecture seule). L'athlète le marque aussi depuis
-  sa propre vue semaine ou la fiche détail de la séance.
+- **Filtre coach** (vue semaine et mois) : Tous, ou un groupe. Chaque chip de groupe a un menu
+  déroulant vers ses athlètes (pas de liste plate — invivable à 150 athlètes) pour afficher le
+  statut **fait / non fait** d'un seul, par séance (façon Pronote — seul l'athlète le marque, un
+  coach consulte en lecture seule). L'athlète le marque depuis sa vue semaine ou la fiche détail.
 - **Saisie rapide du titre** : si le titre ressemble à de la notation (« 10x400 r1' »), une
   suggestion propose de remplir le corps de séance — jamais automatique, pour ne pas écraser un
   titre qui contient juste des chiffres.

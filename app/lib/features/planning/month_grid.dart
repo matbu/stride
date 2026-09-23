@@ -16,8 +16,6 @@ class MonthGrid extends ConsumerWidget {
     required this.today,
     required this.types,
     this.groupFilter,
-    this.athleteFilter,
-    this.groupLinks = const {},
     required this.onSelectDay,
   });
 
@@ -26,8 +24,6 @@ class MonthGrid extends ConsumerWidget {
   final DateTime today;
   final Map<String, SessionType> types;
   final String? groupFilter;
-  final String? athleteFilter;
-  final Map<String, Set<String>> groupLinks;
   final ValueChanged<DateTime> onSelectDay;
 
   @override
@@ -41,11 +37,7 @@ class MonthGrid extends ConsumerWidget {
 
     final range = '${isoDate(gridStart)}|${isoDate(gridEnd)}';
     final all = ref.watch(sessionsForRangeProvider(range)).value ?? const <PlannedSession>[];
-    final sessions = groupFilter != null
-        ? all.where((s) => s.groupId == groupFilter).toList()
-        : athleteFilter != null
-            ? all.where((s) => (groupLinks[athleteFilter] ?? const <String>{}).contains(s.groupId)).toList()
-            : all;
+    final sessions = groupFilter == null ? all : all.where((s) => s.groupId == groupFilter).toList();
     final byDay = <String, List<PlannedSession>>{};
     for (final s in sessions) {
       (byDay[s.date] ??= []).add(s);
