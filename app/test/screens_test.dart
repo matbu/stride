@@ -129,6 +129,27 @@ void main() {
       await tester.pump();
       expect(fake.attendanceToggles, [(sprintGroup.id, 'a1', true)]);
     });
+
+    testWidgets('une séance créée pour plusieurs groupes n’apparaît qu’une fois, groupes combinés',
+        (tester) async {
+      final overrides = clubOverrides(
+        sessions: [
+          PlannedSession(
+            id: 's1', typeId: fractionne.id, title: 'Séance multi-groupes', groupId: sprintGroup.id,
+            date: today, linkedId: 'batch-1',
+          ),
+          PlannedSession(
+            id: 's2', typeId: fractionne.id, title: 'Séance multi-groupes', groupId: demiGroup.id,
+            date: today, linkedId: 'batch-1',
+          ),
+        ],
+      );
+      await tester.pumpWidget(testApp(const OverviewScreen(), overrides: overrides));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Séance multi-groupes'), findsOneWidget, reason: 'une seule carte, pas une par groupe');
+      expect(find.text('Sprint, Demi-fond'), findsOneWidget);
+    });
   });
 
   group('club', () {

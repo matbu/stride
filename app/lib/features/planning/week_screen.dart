@@ -9,6 +9,7 @@ import '../common.dart';
 import 'month_grid.dart';
 import 'navigation.dart';
 import 'session_card.dart';
+import 'session_merge.dart';
 
 /// Largeur à partir de laquelle on affiche les 7 jours côte à côte (tablette, paysage).
 const weekColumnsMinWidth = 720.0;
@@ -305,30 +306,6 @@ class _FilterChip extends StatelessWidget {
       );
 }
 
-/// Regroupe les séances partageant un `linkedId` (créées ou éditées ensemble pour plusieurs
-/// groupes) : une seule carte dans le calendrier au lieu d'une par groupe. `rows` : toutes les
-/// lignes du lot (une séance seule est un lot à elle seule).
-class _MergedSession {
-  _MergedSession(this.rows);
-  final List<PlannedSession> rows;
-  PlannedSession get primary => rows.first;
-  List<String> get groupIds => [for (final r in rows) r.groupId];
-}
-
-List<_MergedSession> _mergeByLinkedId(List<PlannedSession> sessions) {
-  final byKey = <String, List<PlannedSession>>{};
-  for (final s in sessions) {
-    (byKey[s.linkedId ?? s.id] ??= []).add(s);
-  }
-  return [for (final rows in byKey.values) _MergedSession(rows)];
-}
-
-/// Noms de groupes joints (« Sprint, Demi-fond ») pour une séance affichée sur plusieurs groupes.
-String? _groupNamesLabel(List<String> groupIds, Map<String, String> groupNames) {
-  final names = [for (final id in groupIds) ?groupNames[id]];
-  return names.isEmpty ? null : names.join(', ');
-}
-
 String _athleteName(List<Athlete> athletes, String id) {
   for (final a in athletes) {
     if (a.id == id) return a.fullName;
@@ -543,7 +520,7 @@ class _DayAgenda extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final merged = _mergeByLinkedId(sessions);
+    final merged = mergeByLinkedId(sessions);
     if (merged.isEmpty) {
       return ListView(
         padding: const EdgeInsets.all(32),
@@ -583,12 +560,12 @@ class _DayAgenda extends StatelessWidget {
     );
   }
 
-  Widget _card(BuildContext context, _MergedSession m) {
+  Widget _card(BuildContext context, MergedSession m) {
     final s = m.primary;
     final child = SessionCard(
       session: s,
       type: types[s.typeId],
-      groupName: _groupNamesLabel(m.groupIds, groupNames),
+      groupName: groupNamesLabel(m.groupIds, groupNames),
       onTap: () => onOpen(s),
       done: doneIds == null ? null : m.rows.any((r) => doneIds!.contains(r.id)),
       onToggleDone: onToggleDone == null ? null : () => onToggleDone!(s),
@@ -714,14 +691,14 @@ class _DayColumn extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final iso = isoDate(day);
-    final merged = _mergeByLinkedId(sessions);
+    final merged = mergeByLinkedId(sessions);
 
-    Widget card(_MergedSession m) {
+    Widget card(MergedSession m) {
       final s = m.primary;
       final child = SessionCard(
         session: s,
         type: types[s.typeId],
-        groupName: _groupNamesLabel(m.groupIds, groupNames),
+        groupName: groupNamesLabel(m.groupIds, groupNames),
         compact: true,
         onTap: () => onOpen(s),
         done: doneIds == null ? null : m.rows.any((r) => doneIds!.contains(r.id)),

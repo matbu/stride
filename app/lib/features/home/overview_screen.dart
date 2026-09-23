@@ -8,10 +8,13 @@ import '../../data/queries.dart';
 import '../common.dart';
 import '../planning/navigation.dart';
 import '../planning/session_card.dart';
+import '../planning/session_merge.dart';
 
 /// Accueil : la ou les séances du jour (« Repos » sinon), et pour un coach la présence à
 /// l'entraînement par groupe — prise directement ici, consultable ensuite depuis la fiche de
-/// chaque athlète (voir `_AthleteProfilePreview` dans club_screen.dart).
+/// chaque athlète (voir `_AthleteProfilePreview` dans club_screen.dart). Comme la vue semaine
+/// (voir `WeekScreen`), une séance placée sur plusieurs groupes à la fois n'affiche qu'une seule
+/// carte, groupes joints (voir `mergeByLinkedId`).
 class OverviewScreen extends ConsumerWidget {
   const OverviewScreen({super.key});
 
@@ -36,6 +39,7 @@ class OverviewScreen extends ConsumerWidget {
         : myAthlete == null
             ? const <PlannedSession>[]
             : allToday.where((s) => (groupLinks[myAthlete.id] ?? const <String>{}).contains(s.groupId)).toList();
+    final mergedToShow = mergeByLinkedId(sessionsToShow);
 
     void open(PlannedSession s) => openSession(
           context,
@@ -78,17 +82,17 @@ class OverviewScreen extends ConsumerWidget {
         children: [
           Text(longDayLabel(today), style: theme.textTheme.titleMedium),
           const SectionHeader('Séance du jour'),
-          if (sessionsToShow.isEmpty)
+          if (mergedToShow.isEmpty)
             _RestCard(coach: isCoach)
           else
-            for (final s in sessionsToShow)
+            for (final m in mergedToShow)
               Padding(
                 padding: const EdgeInsets.only(bottom: 10),
                 child: SessionCard(
-                  session: s,
-                  type: types[s.typeId],
-                  groupName: groupNames[s.groupId],
-                  onTap: () => open(s),
+                  session: m.primary,
+                  type: types[m.primary.typeId],
+                  groupName: groupNamesLabel(m.groupIds, groupNames),
+                  onTap: () => open(m.primary),
                 ),
               ),
           if (isCoach) ...[
