@@ -510,44 +510,28 @@ class _ClubProfileSectionState extends ConsumerState<_ClubProfileSection> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Row(
+                Stack(
                   children: [
-                    Stack(
-                      children: [
-                        ClubLogo(logoPath: profile?.logoPath, radius: 28),
-                        Positioned(
-                          right: -4,
-                          bottom: -4,
-                          child: IconButton.filled(
-                            key: const Key('pick-club-logo'),
-                            onPressed: _uploadingLogo ? null : _pickLogo,
-                            icon: _uploadingLogo
-                                ? const SizedBox(
-                                    width: 16,
-                                    height: 16,
-                                    child: CircularProgressIndicator(strokeWidth: 2),
-                                  )
-                                : const Icon(Icons.camera_alt_outlined, size: 18),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      child: Text(
-                        'Le logo apparaît en haut de l’écran Accueil, pour tous les membres.',
-                        style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+                    ClubLogo(logoPath: profile?.logoPath, radius: 28),
+                    Positioned(
+                      right: -4,
+                      bottom: -4,
+                      child: IconButton.filled(
+                        key: const Key('pick-club-logo'),
+                        onPressed: _uploadingLogo ? null : _pickLogo,
+                        icon: _uploadingLogo
+                            ? const SizedBox(
+                                width: 16,
+                                height: 16,
+                                child: CircularProgressIndicator(strokeWidth: 2),
+                              )
+                            : const Icon(Icons.camera_alt_outlined, size: 18),
                       ),
                     ),
                   ],
                 ),
                 const SizedBox(height: 16),
                 Text('Description', style: theme.textTheme.labelLarge),
-                const SizedBox(height: 4),
-                Text(
-                  'Présente le club en quelques mots — pourra être rendue publique plus tard.',
-                  style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant),
-                ),
                 const SizedBox(height: 8),
                 TextField(
                   key: const Key('club-description-field'),
