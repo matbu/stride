@@ -13,6 +13,15 @@ const _kindIcons = {
 
 IconData blockKindIcon(BlockKind k) => _kindIcons[k]!;
 
+/// Exemple affiché en filigrane dans le champ de saisie rapide, adapté au type de bloc — une
+/// suggestion, jamais du contenu réel : rien à effacer si elle ne convient pas.
+const _quickInputHints = {
+  BlockKind.warmup: "Footing 20'",
+  BlockKind.cooldown: 'Étirements',
+  BlockKind.main: "10x400 r1'  3x300 r1'",
+  BlockKind.other: "10x400 r1'  3x300 r1'",
+};
+
 /// Un bloc de séance : ses exercices (réordonnables) et un champ de saisie rapide.
 ///
 /// Dans le champ, `10x400 r1'` puis « + » (ou le bouton) ajoute l'exercice ; on peut en saisir
@@ -258,7 +267,7 @@ class _BlockCardState extends State<BlockCard> {
                 onChanged: (_) => setState(() {}),
                 decoration: InputDecoration(
                   isDense: true,
-                  hintText: "Ajouter : 10x400 r1'  3x300 r1'",
+                  hintText: 'Ajouter : ${_quickInputHints[_b.kind]}',
                   suffixIcon: IconButton(
                     key: Key('quick-add-${widget.index}'),
                     tooltip: 'Ajouter',

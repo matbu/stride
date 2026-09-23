@@ -18,25 +18,17 @@ Future<void> openSessionEditor(BuildContext context, SessionDraft draft) {
   );
 }
 
-/// Contenu par défaut d'un bloc échauffement/retour au calme fraîchement ajouté — un point de
-/// départ courant, à modifier ou effacer librement (ce sont des exercices comme les autres,
-/// donc enregistrés tels quels s'ils restent).
-BlockDraft _defaultBlock(BlockKind kind) => switch (kind) {
-      BlockKind.warmup => BlockDraft(kind: kind, items: const [BlockItem(durationS: 20 * 60)]),
-      BlockKind.cooldown => BlockDraft(kind: kind, items: const [BlockItem(note: 'Étirements')]),
-      BlockKind.main || BlockKind.other => BlockDraft(kind: kind),
-    };
-
-/// Brouillon d'une nouvelle séance : trois blocs, échauffement et retour au calme pré-remplis
-/// (voir `_defaultBlock`) — le corps de séance reste vide.
+/// Brouillon d'une nouvelle séance : trois blocs vides (les vides sont ignorés à l'enregistrement).
+/// Le champ de saisie rapide suggère un exemple adapté à chacun (voir `quickInputHint`), sans
+/// rien pré-remplir — rien à effacer si ça ne convient pas.
 SessionDraft newSessionDraft({DateTime? date, String? groupId, bool template = false}) => SessionDraft(
       isTemplate: template,
       date: template ? null : isoDate(date ?? dateOnly(DateTime.now())),
       groupIds: {?groupId},
       blocks: [
-        _defaultBlock(BlockKind.warmup),
-        _defaultBlock(BlockKind.main),
-        _defaultBlock(BlockKind.cooldown),
+        BlockDraft(kind: BlockKind.warmup),
+        BlockDraft(kind: BlockKind.main),
+        BlockDraft(kind: BlockKind.cooldown),
       ],
     );
 
@@ -198,7 +190,7 @@ class _SessionEditorScreenState extends ConsumerState<SessionEditorScreen> {
   }
 
   void _addBlock(BlockKind kind) {
-    final block = _defaultBlock(kind);
+    final block = BlockDraft(kind: kind);
     setState(() {
       switch (kind) {
         case BlockKind.warmup:
