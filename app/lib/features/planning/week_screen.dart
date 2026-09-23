@@ -25,6 +25,9 @@ const weekColumnsMinWidth = 720.0;
 ///    déroulant (« Tous » + les athlètes du groupe) pour n'afficher que le statut « fait / non
 ///    fait » d'un athlète (lecture seule pour le coach — façon Pronote, seul l'athlète le
 ///    marque) — pas de liste plate de tous les athlètes du club, invivable pour un gros effectif.
+///  * Une séance placée sur plusieurs groupes à la fois (une ligne par groupe en base, voir
+///    `linkedId`) n'affiche qu'une seule carte, avec les noms de groupes joints — pas une carte
+///    par groupe.
 class WeekScreen extends ConsumerStatefulWidget {
   const WeekScreen({super.key});
 
@@ -302,6 +305,30 @@ class _FilterChip extends StatelessWidget {
       );
 }
 
+/// Regroupe les séances partageant un `linkedId` (créées ou éditées ensemble pour plusieurs
+/// groupes) : une seule carte dans le calendrier au lieu d'une par groupe. `rows` : toutes les
+/// lignes du lot (une séance seule est un lot à elle seule).
+class _MergedSession {
+  _MergedSession(this.rows);
+  final List<PlannedSession> rows;
+  PlannedSession get primary => rows.first;
+  List<String> get groupIds => [for (final r in rows) r.groupId];
+}
+
+List<_MergedSession> _mergeByLinkedId(List<PlannedSession> sessions) {
+  final byKey = <String, List<PlannedSession>>{};
+  for (final s in sessions) {
+    (byKey[s.linkedId ?? s.id] ??= []).add(s);
+  }
+  return [for (final rows in byKey.values) _MergedSession(rows)];
+}
+
+/// Noms de groupes joints (« Sprint, Demi-fond ») pour une séance affichée sur plusieurs groupes.
+String? _groupNamesLabel(List<String> groupIds, Map<String, String> groupNames) {
+  final names = [for (final id in groupIds) ?groupNames[id]];
+  return names.isEmpty ? null : names.join(', ');
+}
+
 String _athleteName(List<Athlete> athletes, String id) {
   for (final a in athletes) {
     if (a.id == id) return a.fullName;
@@ -516,7 +543,8 @@ class _DayAgenda extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    if (sessions.isEmpty) {
+    final merged = _mergeByLinkedId(sessions);
+    if (merged.isEmpty) {
       return ListView(
         padding: const EdgeInsets.all(32),
         children: [
@@ -546,22 +574,23 @@ class _DayAgenda extends StatelessWidget {
     }
     return ListView.separated(
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 96),
-      itemCount: sessions.length + 1,
+      itemCount: merged.length + 1,
       separatorBuilder: (_, _) => const SizedBox(height: 10),
       itemBuilder: (context, i) {
         if (i == 0) return Text(longDayLabel(day), style: theme.textTheme.titleMedium);
-        return _card(context, sessions[i - 1]);
+        return _card(context, merged[i - 1]);
       },
     );
   }
 
-  Widget _card(BuildContext context, PlannedSession s) {
+  Widget _card(BuildContext context, _MergedSession m) {
+    final s = m.primary;
     final child = SessionCard(
       session: s,
       type: types[s.typeId],
-      groupName: groupNames[s.groupId],
+      groupName: _groupNamesLabel(m.groupIds, groupNames),
       onTap: () => onOpen(s),
-      done: doneIds?.contains(s.id),
+      done: doneIds == null ? null : m.rows.any((r) => doneIds!.contains(r.id)),
       onToggleDone: onToggleDone == null ? null : () => onToggleDone!(s),
     );
     if (!isCoach) return child;
@@ -685,15 +714,17 @@ class _DayColumn extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final iso = isoDate(day);
+    final merged = _mergeByLinkedId(sessions);
 
-    Widget card(PlannedSession s) {
+    Widget card(_MergedSession m) {
+      final s = m.primary;
       final child = SessionCard(
         session: s,
         type: types[s.typeId],
-        groupName: groupNames[s.groupId],
+        groupName: _groupNamesLabel(m.groupIds, groupNames),
         compact: true,
         onTap: () => onOpen(s),
-        done: doneIds?.contains(s.id),
+        done: doneIds == null ? null : m.rows.any((r) => doneIds!.contains(r.id)),
         onToggleDone: onToggleDone == null ? null : () => onToggleDone!(s),
       );
       if (!isCoach) return child;
@@ -779,9 +810,9 @@ class _DayColumn extends StatelessWidget {
               Expanded(
                 child: ListView.separated(
                   padding: const EdgeInsets.fromLTRB(0, 0, 0, 96),
-                  itemCount: sessions.length,
+                  itemCount: merged.length,
                   separatorBuilder: (_, _) => const SizedBox(height: 6),
-                  itemBuilder: (_, i) => card(sessions[i]),
+                  itemBuilder: (_, i) => card(merged[i]),
                 ),
               ),
             ],

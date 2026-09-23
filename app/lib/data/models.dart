@@ -150,6 +150,7 @@ class PlannedSession {
     this.startTime,
     this.durationMin,
     this.description = '',
+    this.linkedId,
   });
   factory PlannedSession.fromRow(DbRow r) => PlannedSession(
         id: r['id'] as String,
@@ -160,6 +161,7 @@ class PlannedSession {
         startTime: r['start_time'] as String?,
         durationMin: r['duration_min'] as int?,
         description: (r['description'] as String?) ?? '',
+        linkedId: r['linked_id'] as String?,
       );
   final String id;
   final String typeId;
@@ -171,6 +173,10 @@ class PlannedSession {
   final String? startTime;
   final int? durationMin;
   final String description;
+
+  /// Partagé par les séances créées (ou éditées) ensemble pour plusieurs groupes : permet de les
+  /// afficher comme une seule séance multi-groupes. Null pour une séance à un seul groupe.
+  final String? linkedId;
 }
 
 /// Modèle de la bibliothèque : une séance sans groupe ni date.

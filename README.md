@@ -168,6 +168,10 @@ Fait, et vérifié par les tests (voir ci-dessus) :
   suppression en la glissant vers la gauche (confirmation demandée).
 - **Vue mois** (bouton calendrier dans l'AppBar) : grille façon Google Calendar avec pastilles de
   couleur par type ; toucher un jour revient à l'agenda de ce jour.
+- Une séance créée (ou éditée) pour plusieurs groupes reste une ligne par groupe en base (chaque
+  groupe garde sa propre copie), mais partage un `linked_id` commun : vue semaine et vue mois
+  n'affichent qu'une seule carte, avec les noms de groupes joints (« Sprint, Demi-fond »). Éditer,
+  déplacer ou supprimer cette carte agit sur toutes les copies liées à la fois.
 - **Filtre coach** (vue semaine et mois) : Tous, ou un groupe. Chaque chip de groupe a un menu
   déroulant vers ses athlètes (pas de liste plate — invivable à 150 athlètes) pour afficher le
   statut **fait / non fait** d'un seul, par séance (façon Pronote — seul l'athlète le marque, un

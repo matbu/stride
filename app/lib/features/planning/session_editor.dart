@@ -50,6 +50,10 @@ class _SessionEditorScreenState extends ConsumerState<SessionEditorScreen> {
 
   /// Une séance existante charge ses blocs depuis la base ; une nouvelle a déjà les siens.
   late bool _blocksLoaded = _d.id == null;
+
+  /// Une séance liée à des sœurs multi-groupes (voir `linkedId`) charge leurs groupes, pour les
+  /// précocher — sinon rien à charger (seule, ou nouvelle séance déjà à jour).
+  late bool _groupsLoaded = _d.linkedId == null;
   bool _dirty = false;
   bool _busy = false;
 
@@ -217,6 +221,16 @@ class _SessionEditorScreenState extends ConsumerState<SessionEditorScreen> {
           ..addAll(loaded.requireValue.map(BlockDraft.from));
         if (_d.blocks.isEmpty) _d.blocks.add(BlockDraft(kind: BlockKind.main));
         _blocksLoaded = true;
+      }
+    }
+
+    if (!_groupsLoaded) {
+      final linked = ref.watch(linkedSessionsProvider(_d.linkedId!));
+      if (linked.hasValue) {
+        for (final s in linked.requireValue) {
+          _d.groupIds.add(s.groupId);
+        }
+        _groupsLoaded = true;
       }
     }
 

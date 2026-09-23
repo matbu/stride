@@ -223,6 +223,17 @@ final sessionsForRangeProvider =
   );
 });
 
+/// Séances sœurs d'un lot multi-groupes (même `linked_id`), pour préremplir leurs groupes à
+/// l'édition (voir `SessionEditorScreen`). Vide pour une séance à un seul groupe.
+final linkedSessionsProvider = StreamProvider.family<List<PlannedSession>, String>((ref, linkedId) {
+  return _query(
+    ref,
+    'SELECT * FROM sessions WHERE linked_id = ?',
+    [linkedId],
+    PlannedSession.fromRow,
+  );
+});
+
 /// Modèles de la bibliothèque du club.
 final templatesProvider = StreamProvider<List<Template>>((ref) {
   final clubId = ref.watch(clubIdProvider);

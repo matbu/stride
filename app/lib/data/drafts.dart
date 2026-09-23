@@ -56,6 +56,7 @@ class SessionDraft {
     this.durationMin,
     this.templateId,
     this.originalGroupId,
+    this.linkedId,
     List<BlockDraft>? blocks,
   })  : groupIds = groupIds ?? {},
         blocks = blocks ?? [BlockDraft(kind: BlockKind.main)];
@@ -70,6 +71,7 @@ class SessionDraft {
         startTime: s.startTime?.substring(0, 5),
         durationMin: s.durationMin,
         originalGroupId: s.groupId,
+        linkedId: s.linkedId,
         blocks: [],
       );
 
@@ -98,6 +100,10 @@ class SessionDraft {
   /// Groupe d'origine de la séance éditée (null pour une création). Sert à savoir, si plusieurs
   /// groupes sont cochés à l'enregistrement, laquelle des copies réutilise la ligne existante.
   final String? originalGroupId;
+
+  /// Partagé avec les copies sœurs (voir `PlannedSession.linkedId`) : à l'enregistrement, permet
+  /// de retrouver leurs lignes pour les mettre à jour au lieu d'en recréer.
+  final String? linkedId;
 
   /// `yyyy-MM-dd`
   String? date;

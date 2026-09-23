@@ -97,6 +97,7 @@ const schema = Schema([
     Column.text('location'),
     Column.text('template_id'),
     Column.text('created_by'),
+    Column.text('linked_id'),
   ]),
   Table('session_blocks', [
     Column.text('club_id'),

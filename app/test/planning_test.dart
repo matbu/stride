@@ -706,6 +706,29 @@ void main() {
       expect(fake.markedDone, [('s1', 'a1')]);
     });
 
+    testWidgets('une séance créée pour plusieurs groupes n’apparaît qu’une fois, groupes combinés', (tester) async {
+      tester.view.physicalSize = const Size(400, 800);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+      final overrides = clubOverrides(
+        sessions: [
+          PlannedSession(
+            id: 's1', typeId: fractionne.id, title: 'Séance multi-groupes', groupId: sprintGroup.id,
+            date: todayIso, linkedId: 'batch-1',
+          ),
+          PlannedSession(
+            id: 's2', typeId: fractionne.id, title: 'Séance multi-groupes', groupId: demiGroup.id,
+            date: todayIso, linkedId: 'batch-1',
+          ),
+        ],
+      );
+      await tester.pumpWidget(testApp(const WeekScreen(), overrides: overrides));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Séance multi-groupes'), findsOneWidget, reason: 'une seule carte, pas une par groupe');
+      expect(find.text('Sprint, Demi-fond'), findsOneWidget);
+    });
+
     testWidgets('tablette : un athlète ne peut ni ajouter ni déplacer', (tester) async {
       tester.view.physicalSize = const Size(1400, 900);
       tester.view.devicePixelRatio = 1;
