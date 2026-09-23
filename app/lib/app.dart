@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'core/theme.dart';
 import 'data/database.dart';
+import 'data/notification_scheduler.dart';
 import 'router.dart';
 
 const _localizationsDelegates = [
@@ -18,8 +19,9 @@ class CoachApp extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     ref.watch(syncLifecycleProvider);
+    ref.watch(notificationSchedulerProvider);
     return MaterialApp.router(
-      title: 'Coach',
+      title: 'TrackClub',
       debugShowCheckedModeBanner: false,
       theme: buildTheme(Brightness.light),
       darkTheme: buildTheme(Brightness.dark),

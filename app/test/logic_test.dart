@@ -8,6 +8,7 @@ import 'package:trackclub/core/format.dart';
 import 'package:trackclub/data/actions.dart';
 import 'package:trackclub/data/database.dart';
 import 'package:trackclub/data/models.dart';
+import 'package:trackclub/data/notification_scheduler.dart';
 import 'package:trackclub/data/queries.dart';
 import 'package:trackclub/router.dart';
 
@@ -145,6 +146,28 @@ void main() {
     test('SessionType.fromRow lit la couleur hexadécimale', () {
       final t = SessionType.fromRow({'id': 't', 'name': 'Vitesse', 'color': '#8E4EC6', 'icon': 'sprint'});
       expect(t.color.toARGB32(), 0xFF8E4EC6);
+    });
+  });
+
+  group('rappels de séance', () {
+    PlannedSession session(String id, String date, String groupId, String title) =>
+        PlannedSession(id: id, typeId: 't', title: title, groupId: groupId, date: date);
+
+    test('regroupe par jour, restreint aux groupes de l’athlète', () {
+      final sessions = [
+        session('s1', '2026-09-24', 'g-sprint', 'Fractionné'),
+        session('s2', '2026-09-24', 'g-sprint', 'Musculation'), // même jour, même groupe
+        session('s3', '2026-09-25', 'g-demi', 'Footing'), // autre groupe : hors de son suivi
+      ];
+      final byDate = titlesByDateForAthlete(sessions, {'g-sprint'});
+      expect(byDate, {
+        '2026-09-24': ['Fractionné', 'Musculation'],
+      });
+    });
+
+    test('aucune séance dans ses groupes : rien à programmer', () {
+      final sessions = [session('s1', '2026-09-24', 'g-demi', 'Footing')];
+      expect(titlesByDateForAthlete(sessions, {'g-sprint'}), isEmpty);
     });
   });
 }

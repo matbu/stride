@@ -192,6 +192,11 @@ Fait, et vérifié par les tests (voir ci-dessus) :
   records personnels (entraînement / compétition non officielle, distincts des records FFA). Géré
   par l'athlète seul ; un coach le consulte en lecture seule depuis la fiche de l'athlète dans
   l'écran Club. Déconnexion.
+- **Rappel de séance à 8h** (`core/notifications.dart`) : notification **locale** (programmée sur
+  l'appareil, pas envoyée par un serveur) pour un athlète qui a une séance dans l'un de ses
+  groupes, sur les 7 prochains jours. Reprogrammée à chaque changement de séances (tout annulé et
+  refait à chaque fois, jamais d'accumulation ni de rappel périmé). Rien pour un coach : c'est un
+  rappel personnel, pas une alerte sur tout ce que son club a de prévu.
 
 **Non vérifié** (aucune instance ni appareil disponibles pendant le développement) :
 - La synchronisation PowerSync de bout en bout : `sync-rules.yaml` et `connector.dart` sont écrits
@@ -200,6 +205,9 @@ Fait, et vérifié par les tests (voir ci-dessus) :
 - L'app sur simulateur ou appareil réel (rendu vérifié uniquement via des tests de widgets).
 - Le sélecteur de fichier et le partage du fichier modèle (`import_screen.dart`) : plugins natifs non testables ici.
 - Le glisser-déposer au doigt sur une vraie tablette (testé par gestes simulés).
+- **Les notifications locales** : jamais déclenchées sur un simulateur ou appareil réel (plugin
+  natif, hors de portée ici). À vérifier en priorité : la demande de permission au premier
+  lancement, l'affichage à 8h pile, et sur Android que le canal de notification n'est pas bloqué.
 
 À faire ensuite :
 - Calendrier de saison (compétitions, échéances) : les tables existent, pas l'écran.

@@ -5,11 +5,13 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'app.dart';
 import 'config.dart';
+import 'core/notifications.dart';
 import 'data/database.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await initializeDateFormatting('fr');
+  await initNotifications();
 
   if (!Config.isComplete) {
     runApp(const MissingConfigApp());
