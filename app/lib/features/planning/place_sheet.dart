@@ -57,7 +57,7 @@ class _TemplatePicker extends ConsumerWidget {
             const Padding(
               padding: EdgeInsets.symmetric(vertical: 24),
               child: Text(
-                'La bibliothèque est vide. Crée un modèle dans l’onglet Bibliothèque, '
+                'La bibliothèque est vide. Crée un modèle dans l’onglet Modèles, '
                 'ou enregistre une séance comme modèle.',
               ),
             ),
