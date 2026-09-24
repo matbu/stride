@@ -48,6 +48,33 @@ Future<void> confirmSignOut(BuildContext context, WidgetRef ref) async {
   await actions.signOut();
 }
 
+/// Suppression de compte (RPC `delete_own_account`) : irréversible, donc une confirmation
+/// explicite avant d'appeler le serveur. Refusée avec un message clair si on est encore
+/// propriétaire actif d'un club (`owner_must_transfer`, voir `humanError`).
+Future<void> confirmDeleteAccount(BuildContext context, WidgetRef ref) async {
+  final ok = await showDialog<bool>(
+    context: context,
+    builder: (ctx) => AlertDialog(
+      title: const Text('Supprimer ton compte ?'),
+      content: const Text(
+        'Action définitive : ton profil, tes adhésions et tes données personnelles (photo, '
+        'description, records, historique fait/non fait) seront supprimés. Si tu es encore '
+        'propriétaire d’un club, passe d’abord la main à un autre coach.',
+      ),
+      actions: [
+        TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Annuler')),
+        TextButton(
+          style: TextButton.styleFrom(foregroundColor: Theme.of(ctx).colorScheme.error),
+          onPressed: () => Navigator.pop(ctx, true),
+          child: const Text('Supprimer mon compte'),
+        ),
+      ],
+    ),
+  );
+  if (ok != true || !context.mounted) return;
+  await guarded(context, () => ref.read(accountActionsProvider).deleteAccount());
+}
+
 /// Contenu centré, largeur limitée (lisible sur tablette).
 class FormPage extends StatelessWidget {
   const FormPage({super.key, required this.children, this.title, this.maxWidth = 440});

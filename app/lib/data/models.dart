@@ -276,3 +276,71 @@ List<BlockItem> decodeItems(Object? raw) {
 }
 
 String encodeItems(List<BlockItem> items) => jsonEncode([for (final i in items) i.toJson()]);
+
+// --- Calendrier de saison ------------------------------------------------------------------
+
+enum EventKind {
+  competition('Compétition'),
+  deadline('Échéance'),
+  camp('Stage'),
+  other('Autre');
+
+  const EventKind(this.label);
+  final String label;
+
+  static EventKind parse(String? s) =>
+      values.firstWhere((k) => k.name == s, orElse: () => EventKind.other);
+}
+
+/// Correspond à l'enum Postgres `event_priority` ('A', 'B', 'C') — les valeurs stockées sont en
+/// majuscule, d'où le mapping explicite plutôt qu'un simple `values.byName`.
+enum EventPriority {
+  a('A'),
+  b('B'),
+  c('C');
+
+  const EventPriority(this.dbValue);
+  final String dbValue;
+
+  static EventPriority? parse(String? s) => switch (s) {
+        'A' => EventPriority.a,
+        'B' => EventPriority.b,
+        'C' => EventPriority.c,
+        _ => null,
+      };
+}
+
+/// Un événement du calendrier de saison (compétition, échéance, stage...). `startDate`/
+/// `endDate` au format `yyyy-MM-dd`. Sans ligne dans `event_groups`, concerne tout le club.
+class Event {
+  const Event({
+    required this.id,
+    required this.kind,
+    required this.title,
+    required this.startDate,
+    required this.endDate,
+    this.location = '',
+    this.priority,
+    this.notes = '',
+  });
+
+  factory Event.fromRow(DbRow r) => Event(
+        id: r['id'] as String,
+        kind: EventKind.parse(r['kind'] as String?),
+        title: r['title'] as String,
+        startDate: r['start_date'] as String,
+        endDate: r['end_date'] as String,
+        location: (r['location'] as String?) ?? '',
+        priority: EventPriority.parse(r['priority'] as String?),
+        notes: (r['notes'] as String?) ?? '',
+      );
+
+  final String id;
+  final EventKind kind;
+  final String title;
+  final String startDate;
+  final String endDate;
+  final String location;
+  final EventPriority? priority;
+  final String notes;
+}

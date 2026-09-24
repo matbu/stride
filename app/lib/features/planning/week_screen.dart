@@ -208,17 +208,24 @@ class _WeekScreenState extends ConsumerState<WeekScreen> {
             const Divider(height: 1),
             Expanded(
               child: _monthView
-                  ? Padding(
-                      padding: const EdgeInsets.all(8),
-                      child: MonthGrid(
-                        month: _monthCursor,
-                        today: today,
-                        types: types,
-                        groupFilter: _groupFilter,
-                        onSelectDay: (d) => setState(() {
-                          _selected = d;
-                          _monthView = false;
-                        }),
+                  ? GestureDetector(
+                      behavior: HitTestBehavior.translucent,
+                      onHorizontalDragEnd: (d) {
+                        final v = d.primaryVelocity ?? 0;
+                        if (v.abs() > 300) _shiftMonths(v < 0 ? 1 : -1);
+                      },
+                      child: Padding(
+                        padding: const EdgeInsets.all(8),
+                        child: MonthGrid(
+                          month: _monthCursor,
+                          today: today,
+                          types: types,
+                          groupFilter: _groupFilter,
+                          onSelectDay: (d) => setState(() {
+                            _selected = d;
+                            _monthView = false;
+                          }),
+                        ),
                       ),
                     )
                   : wide

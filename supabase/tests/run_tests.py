@@ -366,6 +366,13 @@ check("départ : plus d'accès aux séances", count(lea, "sessions") == 0)
 run(marc, "select public.remove_member(%s, %s)", (club, tom))
 check("un coach retire un athlète", len(su("select 1 from public.memberships where user_id=%s and club_id=%s", (tom, club))) == 0)
 
+print("suppression de compte")
+fails("un owner ne supprime pas son compte sans passer la main", marc, "select public.delete_own_account()", None, "owner_must_transfer")
+run(julie, "select public.delete_own_account()")
+check("le compte a bien disparu de auth.users", len(su("select 1 from auth.users where id=%s", (julie,))) == 0)
+check("created_by (club créé par julie) passe à NULL plutôt que de bloquer la suppression",
+      su("select created_by from public.clubs where id=%s", (club,))[0][0] is None)
+
 print("profil")
 run(eve, "update public.profiles set display_name = 'Eve Martin' where id = %s", (eve,))
 check("le nom se propage aux adhésions", su("select display_name from public.memberships where user_id=%s", (eve,))[0][0] == "Eve Martin")

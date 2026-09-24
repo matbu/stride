@@ -10,6 +10,7 @@ import '../../data/models.dart';
 import '../../data/profile_actions.dart';
 import '../../data/queries.dart';
 import '../common.dart';
+import '../legal/privacy_policy_screen.dart';
 import 'invite_dialog.dart';
 
 /// Gestion du club par les coachs : demandes, profil du club (description, logo), groupes,
@@ -191,6 +192,17 @@ class ClubScreen extends ConsumerWidget {
           TextButton(
             onPressed: () => confirmSignOut(context, ref),
             child: const Text('Se déconnecter'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const PrivacyPolicyScreen()),
+            ),
+            child: const Text('Confidentialité'),
+          ),
+          TextButton(
+            style: TextButton.styleFrom(foregroundColor: Theme.of(context).colorScheme.error),
+            onPressed: () => confirmDeleteAccount(context, ref),
+            child: const Text('Supprimer mon compte'),
           ),
         ],
       ),

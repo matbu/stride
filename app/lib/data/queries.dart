@@ -265,3 +265,35 @@ final blocksForSessionProvider =
     SessionBlock.fromRow,
   );
 });
+
+// --- Calendrier de saison -----------------------------------------------------------------
+
+/// Événements du club (compétitions, échéances, stages...), du plus proche au plus lointain.
+final eventsForClubProvider = StreamProvider<List<Event>>((ref) {
+  final clubId = ref.watch(clubIdProvider);
+  if (clubId == null) return Stream.value(const []);
+  return _query(
+    ref,
+    'SELECT * FROM events WHERE club_id = ? ORDER BY start_date',
+    [clubId],
+    Event.fromRow,
+  );
+});
+
+/// event_id → ensemble des groupes concernés. Absent (clé manquante) = tout le club.
+final eventGroupsProvider = StreamProvider<Map<String, Set<String>>>((ref) {
+  final clubId = ref.watch(clubIdProvider);
+  if (clubId == null) return Stream.value(const {});
+  return _query(
+    ref,
+    'SELECT event_id, group_id FROM event_groups WHERE club_id = ?',
+    [clubId],
+    (r) => (r['event_id'] as String, r['group_id'] as String),
+  ).map((links) {
+    final map = <String, Set<String>>{};
+    for (final (eventId, groupId) in links) {
+      (map[eventId] ??= {}).add(groupId);
+    }
+    return map;
+  });
+});

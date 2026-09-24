@@ -12,6 +12,7 @@ import 'package:trackclub/data/actions.dart';
 import 'package:trackclub/data/club_profile_actions.dart';
 import 'package:trackclub/data/database.dart';
 import 'package:trackclub/data/drafts.dart';
+import 'package:trackclub/data/event_actions.dart';
 import 'package:trackclub/data/models.dart';
 import 'package:trackclub/data/profile_actions.dart';
 import 'package:trackclub/data/queries.dart';
@@ -149,6 +150,41 @@ class FakeClubActions extends Fake implements ClubActions {
   Future<void> requestJoin(String clubId, ClubRole role) async => joinRequests.add((clubId, role));
 }
 
+class FakeEventActions extends Fake implements EventActions {
+  final saved = <({String? id, String clubId, EventKind kind, String title, String startDate, String endDate, Set<String> groupIds})>[];
+  final deleted = <String>[];
+
+  @override
+  Future<void> save({
+    String? id,
+    required String clubId,
+    required EventKind kind,
+    required String title,
+    required String startDate,
+    required String endDate,
+    String location = '',
+    EventPriority? priority,
+    String notes = '',
+    required Set<String> groupIds,
+  }) async {
+    saved.add((id: id, clubId: clubId, kind: kind, title: title.trim(), startDate: startDate, endDate: endDate, groupIds: groupIds));
+  }
+
+  @override
+  Future<void> delete(String id) async => deleted.add(id);
+}
+
+class FakeAccountActions extends Fake implements AccountActions {
+  bool deleted = false;
+  bool pendingUploads = false;
+
+  @override
+  Future<bool> hasPendingUploads() async => pendingUploads;
+
+  @override
+  Future<void> deleteAccount() async => deleted = true;
+}
+
 class FakeProfileActions extends Fake implements ProfileActions {
   final savedProfiles = <(String athleteId, String bio, String? ffaUrl)>[];
   final savedRecords = <AthleteRecord>[];
@@ -233,6 +269,10 @@ List<Override> clubOverrides({
   Map<String, List<String>> attendanceDates = const {}, // athleteId -> dates de présence
   ClubProfile? clubProfile,
   FakeClubProfileActions? clubProfileActions,
+  FakeAccountActions? accountActions,
+  List<Event> events = const [],
+  Map<String, Set<String>> eventGroups = const {}, // eventId -> groupIds (vide = tout le club)
+  FakeEventActions? eventActions,
 }) {
   final m = me ?? membership();
   return [
@@ -241,6 +281,10 @@ List<Override> clubOverrides({
     clubProvider.overrideWith((ref) => Stream.value(const Club(id: 'c1', name: 'AC Test'))),
     clubProfileProvider.overrideWith((ref) => Stream.value(clubProfile)),
     clubProfileActionsProvider.overrideWithValue(clubProfileActions ?? FakeClubProfileActions()),
+    accountActionsProvider.overrideWithValue(accountActions ?? FakeAccountActions()),
+    eventsForClubProvider.overrideWith((ref) => Stream.value(events)),
+    eventGroupsProvider.overrideWith((ref) => Stream.value(eventGroups)),
+    eventActionsProvider.overrideWithValue(eventActions ?? FakeEventActions()),
     groupsProvider.overrideWith((ref) => Stream.value(groups)),
     sessionTypesProvider.overrideWith((ref) => Stream.value(types)),
     sessionsForWeekProvider.overrideWith((ref, monday) => Stream.value(sessions)),

@@ -268,6 +268,31 @@ void main() {
 
       expect(fake.savedDescriptions, ['Club ouvert à tous, de l’éveil athlétique aux masters.']);
     });
+
+    testWidgets('confidentialité et suppression de compte sont accessibles', (tester) async {
+      final fake = FakeAccountActions();
+      await tester.pumpWidget(testApp(const ClubScreen(), overrides: clubOverrides(accountActions: fake)));
+      await tester.pumpAndSettle();
+
+      await tester.scrollUntilVisible(find.text('Confidentialité'), 300, scrollable: find.byType(Scrollable).first);
+      await tester.tap(find.text('Confidentialité'));
+      await tester.pumpAndSettle();
+      expect(find.text('Qui gère tes données'), findsOneWidget);
+      await tester.tap(find.byType(BackButton));
+      await tester.pumpAndSettle();
+
+      await tester.scrollUntilVisible(
+        find.text('Supprimer mon compte'),
+        300,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.tap(find.text('Supprimer mon compte'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.widgetWithText(TextButton, 'Supprimer mon compte').last);
+      await tester.pumpAndSettle();
+
+      expect(fake.deleted, isTrue);
+    });
   });
 
   group('rejoindre un club : recherche', () {

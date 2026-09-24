@@ -9,6 +9,7 @@ import '../../data/models.dart';
 import '../../data/profile_actions.dart';
 import '../../data/queries.dart';
 import '../common.dart';
+import '../legal/privacy_policy_screen.dart';
 
 /// Profil d'un athlète : groupes, photo, description, lien FFA, records personnels,
 /// et déconnexion. Photo/description/records/lien FFA sont gérés par l'athlète seul ; un coach
@@ -303,6 +304,17 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           TextButton(
             onPressed: () => confirmSignOut(context, ref),
             child: const Text('Se déconnecter'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const PrivacyPolicyScreen()),
+            ),
+            child: const Text('Confidentialité'),
+          ),
+          TextButton(
+            style: TextButton.styleFrom(foregroundColor: Theme.of(context).colorScheme.error),
+            onPressed: () => confirmDeleteAccount(context, ref),
+            child: const Text('Supprimer mon compte'),
           ),
         ],
       ),

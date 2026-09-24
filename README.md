@@ -167,7 +167,8 @@ Fait, et vérifié par les tests (voir ci-dessus) :
   avec glisser-déposer d'une séance vers un autre jour (appui long) dans les deux dispositions, et
   suppression en la glissant vers la gauche (confirmation demandée).
 - **Vue mois** (bouton calendrier dans l'AppBar) : grille façon Google Calendar avec pastilles de
-  couleur par type ; toucher un jour revient à l'agenda de ce jour.
+  couleur par type ; toucher un jour revient à l'agenda de ce jour. Swipe gauche/droite (souris ou
+  doigt) pour changer de mois, comme les boutons ‹ › de l'AppBar.
 - Une séance créée (ou éditée) pour plusieurs groupes reste une ligne par groupe en base (chaque
   groupe garde sa propre copie), mais partage un `linked_id` commun : Accueil, vue semaine et vue
   mois n'affichent qu'une seule carte, avec les noms de groupes joints (« Sprint, Demi-fond »).
@@ -204,6 +205,20 @@ Fait, et vérifié par les tests (voir ci-dessus) :
   groupes, sur les 7 prochains jours. Reprogrammée à chaque changement de séances (tout annulé et
   refait à chaque fois, jamais d'accumulation ni de rappel périmé). Rien pour un coach : c'est un
   rappel personnel, pas une alerte sur tout ce que son club a de prévu.
+- **Calendrier de saison** (onglet « Saison ») : compétitions, échéances, stages (`events`/
+  `event_groups`, déjà en base depuis le début). Visible par tout le club (filtré aux groupes
+  concernés, ou « Tout le club » si aucun groupe précisé) ; créer/modifier/supprimer réservé aux
+  coachs, un athlète consulte en lecture seule (dates, lieu, priorité A/B/C, notes).
+- **Suppression de compte** (écran Club ou Profil, en bas, en rouge) : RPC `delete_own_account`,
+  refusée tant qu'on est propriétaire actif d'un club (passer la main d'abord, même règle que pour
+  quitter un club). Les colonnes `created_by` (club, séance, événement, invitation, présence) sont
+  historiques : basculées en `on delete set null` pour ne pas bloquer la suppression du compte qui
+  les a créées.
+- **Politique de confidentialité** (écran Club ou Profil, en bas) : texte en dur dans l'app
+  (`features/legal/privacy_policy_screen.dart`), donc lisible même hors ligne. Le même texte existe
+  en page HTML autonome (`legal/privacy-policy.html`) pour l'URL exigée par l'App Store / Play
+  Store — à héberger quelque part (ex. GitHub Pages) et à compléter (adresse de contact) avant
+  publication.
 
 **Non vérifié** (aucune instance ni appareil disponibles pendant le développement) :
 - La synchronisation PowerSync de bout en bout : `sync-rules.yaml` et `connector.dart` sont écrits
@@ -217,12 +232,10 @@ Fait, et vérifié par les tests (voir ci-dessus) :
   lancement, l'affichage à 8h pile, et sur Android que le canal de notification n'est pas bloqué.
 
 À faire ensuite :
-- Calendrier de saison (compétitions, échéances) : les tables existent, pas l'écran.
 - Poser un modèle par glisser-déposer depuis la bibliothèque sur la vue 7 colonnes.
 - Séries imbriquées (`2 x (5x200 r30") r3'`), non gérées par la saisie rapide.
 - Signaler à l'utilisateur les modifications hors ligne rejetées par le serveur (`connector.dart`).
 - Conflits : deux coachs qui modifient le même bloc hors ligne, la dernière écriture gagne.
-- Suppression de compte (obligatoire pour l'App Store), politique de confidentialité.
 - Intégration Strava : tables prêtes (`integrations`, `activities`), profil athlète prêt à l'accueillir.
   D'abord vérifier les conditions de l'API Strava, créer une appli sur developers.strava.com et
   décider comment stocker les tokens OAuth, avant de brancher l'intégration réelle. Objectif : que

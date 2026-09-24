@@ -11,6 +11,7 @@ import 'package:trackclub/data/models.dart';
 import 'package:trackclub/features/library/import_screen.dart';
 import 'package:trackclub/features/library/library_screen.dart';
 import 'package:trackclub/features/planning/block_card.dart';
+import 'package:trackclub/features/planning/month_grid.dart';
 import 'package:trackclub/features/planning/session_editor.dart';
 import 'package:trackclub/features/planning/week_screen.dart';
 
@@ -621,6 +622,31 @@ void main() {
 
       expect(find.byKey(const Key('toggle-month-view')), findsOneWidget); // on est bien revenu à la vue semaine
       expect(find.text('Séance du mercredi'), findsOneWidget);
+    });
+
+    testWidgets('vue mois : swiper à gauche ou à droite change de mois', (tester) async {
+      tester.view.physicalSize = const Size(400, 800);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+      await tester.pumpWidget(testApp(const WeekScreen(), overrides: clubOverrides()));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('toggle-month-view')));
+      await tester.pumpAndSettle();
+
+      final nextMonth = DateTime(today.year, today.month + 1, 1);
+      final prevMonth = DateTime(today.year, today.month - 1, 1);
+
+      await tester.fling(find.byType(MonthGrid), const Offset(-400, 0), 800);
+      await tester.pumpAndSettle();
+      expect(find.text(monthLabel(nextMonth)), findsOneWidget, reason: 'swipe gauche : mois suivant');
+
+      await tester.fling(find.byType(MonthGrid), const Offset(400, 0), 800);
+      await tester.pumpAndSettle();
+      expect(find.text(monthLabel(today)), findsOneWidget, reason: 'swipe droite : retour au mois courant');
+
+      await tester.fling(find.byType(MonthGrid), const Offset(400, 0), 800);
+      await tester.pumpAndSettle();
+      expect(find.text(monthLabel(prevMonth)), findsOneWidget, reason: 'swipe droite : mois précédent');
     });
 
     testWidgets('un coach filtre par athlète : ses groupes, et le statut fait/non fait', (tester) async {

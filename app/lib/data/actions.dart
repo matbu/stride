@@ -170,6 +170,14 @@ class AccountActions {
   /// La déconnexion vide la base locale (voir syncLifecycleProvider) : à n'appeler qu'après
   /// avoir prévenu l'utilisateur si `hasPendingUploads`.
   Future<void> signOut() => _client.auth.signOut();
+
+  /// Supprime définitivement le compte (RPC `delete_own_account`) : rejeté avec
+  /// `owner_must_transfer` tant qu'on est propriétaire actif d'un club. Se déconnecte ensuite
+  /// (la session serveur n'est plus valide, mais l'état local doit suivre).
+  Future<void> deleteAccount() async {
+    await _client.rpc('delete_own_account');
+    await _client.auth.signOut();
+  }
 }
 
 final clubActionsProvider = Provider<ClubActions>((ref) => ClubActions(ref.watch(supabaseProvider)));
