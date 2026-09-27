@@ -25,9 +25,13 @@ class _HomeShellState extends ConsumerState<HomeShell> {
   @override
   Widget build(BuildContext context) {
     final isCoach = ref.watch(isCoachProvider);
+    // Le nombre d'onglets dépend du rôle (5 coach, 4 athlète) : si le rôle change pendant qu'on
+    // est sur le dernier onglet (déconnexion, rôle modifié à distance), l'index sort des bornes.
+    final tabCount = isCoach ? 5 : 4;
+    final index = _index < tabCount ? _index : tabCount - 1;
     return Scaffold(
       body: IndexedStack(
-        index: _index,
+        index: index,
         children: [
           const OverviewScreen(),
           const WeekScreen(),
@@ -37,7 +41,7 @@ class _HomeShellState extends ConsumerState<HomeShell> {
         ],
       ),
       bottomNavigationBar: NavigationBar(
-        selectedIndex: _index,
+        selectedIndex: index,
         onDestinationSelected: (i) => setState(() => _index = i),
         destinations: [
           const NavigationDestination(
