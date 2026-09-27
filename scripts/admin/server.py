@@ -167,7 +167,8 @@ def search_users(term: str):
     with get_conn() as conn, conn.cursor() as cur:
         cur.execute(
             """
-            select m.club_id, c.name as club_name, m.role, m.status, m.display_name, u.email
+            select u.id as user_id, m.id as membership_id, m.club_id, c.name as club_name,
+                   m.role, m.status, m.display_name, u.email
             from auth.users u
             left join public.memberships m on m.user_id = u.id
             left join public.clubs c on c.id = m.club_id

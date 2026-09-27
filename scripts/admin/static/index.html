@@ -64,6 +64,8 @@
 
 <script>
 function esc(s) { return String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+// Argument de chaîne pour un onclick="..." : le JSON contient des guillemets, qu'il faut échapper dans l'attribut.
+function js(v) { return esc(JSON.stringify(v ?? '')); }
 function fmtDate(s) { return s ? new Date(s).toLocaleDateString('fr-FR') : '—'; }
 
 async function api(path, options) {
@@ -104,19 +106,34 @@ async function searchEmail() {
   const results = await api('/api/search?q=' + encodeURIComponent(email));
   box.innerHTML = results.length ? `
     <table><tbody>
-      ${results.map(r => r.club_id ? `
-        <tr>
-          <td>${esc(r.email)}</td>
-          <td>${esc(r.display_name)}</td>
-          <td>${esc(r.role)} · ${esc(r.status)}</td>
-          <td>${esc(r.club_name)}</td>
-          <td><button onclick="openClub('${r.club_id}')">Voir le club</button></td>
-        </tr>` : `
+      ${results.map(r => {
+        const deleteBtn = `<button class="danger" onclick="deleteAccount('${r.user_id}', ${js(r.email)}, null)">Supprimer le compte</button>`;
+        if (!r.club_id) return `
         <tr>
           <td>${esc(r.email)}</td>
           <td colspan="4" class="muted">Aucun club</td>
-        </tr>
-      `).join('')}
+          <td>${deleteBtn}</td>
+        </tr>`;
+        return `
+        <tr>
+          <td>${esc(r.email)}</td>
+          <td>${esc(r.display_name)} <button onclick="renameMember('${r.membership_id}', null, ${js(r.display_name)})">✎</button></td>
+          <td>
+            <select onchange="changeRole('${r.membership_id}', null, this.value, this)" ${r.status === 'pending' ? 'disabled' : ''}>
+              <option value="owner" ${r.role === 'owner' ? 'selected' : ''}>owner</option>
+              <option value="coach" ${r.role === 'coach' ? 'selected' : ''}>coach</option>
+              <option value="athlete" ${r.role === 'athlete' ? 'selected' : ''}>athlete</option>
+            </select>
+            ${r.status === 'pending' ? '<span class="badge pending">en attente</span>' : ''}
+          </td>
+          <td>${esc(r.club_name)}</td>
+          <td><button onclick="openClub('${r.club_id}')">Voir le club</button></td>
+          <td>
+            ${r.role === 'owner' ? '' : `<button class="danger" onclick="removeMembership('${r.membership_id}', null)">Retirer du club</button>`}
+            ${deleteBtn}
+          </td>
+        </tr>`;
+      }).join('')}
     </tbody></table>
   ` : '<p class="muted">Aucun résultat.</p>';
 }
@@ -131,16 +148,16 @@ async function openClub(id) {
 function renderDetail(data) {
   const { club, members, groups, athletes, recentSessions } = data;
   document.getElementById('detail-content').innerHTML = `
-    <h2>${esc(club.name)} <button onclick="renameClub('${club.id}', ${JSON.stringify(club.name)})">Renommer</button></h2>
+    <h2>${esc(club.name)} <button onclick="renameClub('${club.id}', ${js(club.name)})">Renommer</button></h2>
     <p class="muted">Créé le ${fmtDate(club.created_at)} · id ${esc(club.id)}</p>
-    <button class="danger" onclick="deleteClub('${club.id}', ${JSON.stringify(club.name)})">Supprimer ce club</button>
+    <button class="danger" onclick="deleteClub('${club.id}', ${js(club.name)})">Supprimer ce club</button>
 
     <h2>Membres (${members.length})</h2>
     <table><thead><tr><th>Nom</th><th>E-mail</th><th>Rôle</th><th>Statut</th><th></th></tr></thead>
     <tbody>
       ${members.map(m => `
         <tr>
-          <td>${esc(m.display_name)} <button onclick="renameMember('${m.id}', '${club.id}', ${JSON.stringify(m.display_name)})">✎</button></td>
+          <td>${esc(m.display_name)} <button onclick="renameMember('${m.id}', '${club.id}', ${js(m.display_name)})">✎</button></td>
           <td>${esc(m.email ?? '—')}</td>
           <td>
             <select onchange="changeRole('${m.id}', '${club.id}', this.value, this)" ${m.status === 'pending' ? 'disabled' : ''}>
@@ -152,7 +169,7 @@ function renderDetail(data) {
           <td>${m.status === 'pending' ? '<span class="badge pending">en attente</span>' : 'actif'}</td>
           <td>
             ${m.role === 'owner' ? '' : `<button class="danger" onclick="removeMembership('${m.id}', '${club.id}')">Retirer du club</button>`}
-            ${m.user_id ? `<button class="danger" onclick="deleteAccount('${m.user_id}', ${JSON.stringify(m.email)}, '${club.id}')">Supprimer le compte</button>` : ''}
+            ${m.user_id ? `<button class="danger" onclick="deleteAccount('${m.user_id}', ${js(m.email)}, '${club.id}')">Supprimer le compte</button>` : ''}
           </td>
         </tr>
       `).join('') || '<tr><td colspan="5" class="muted">Aucun membre.</td></tr>'}
@@ -171,9 +188,9 @@ function renderDetail(data) {
           <td>${g.athletes_count}</td>
           <td>${g.archived ? 'oui' : 'non'}</td>
           <td>
-            <button onclick="renameGroup('${g.id}', '${club.id}', ${JSON.stringify(g.name)})">Renommer</button>
+            <button onclick="renameGroup('${g.id}', '${club.id}', ${js(g.name)})">Renommer</button>
             <button onclick="toggleGroupArchived('${g.id}', '${club.id}', ${g.archived ? 'false' : 'true'})">${g.archived ? 'Désarchiver' : 'Archiver'}</button>
-            <button class="danger" onclick="deleteGroup('${g.id}', '${club.id}', ${JSON.stringify(g.name)})">Supprimer</button>
+            <button class="danger" onclick="deleteGroup('${g.id}', '${club.id}', ${js(g.name)})">Supprimer</button>
           </td>
         </tr>
       `).join('') || '<tr><td colspan="4" class="muted">Aucun groupe.</td></tr>'}
@@ -205,11 +222,17 @@ async function deleteClub(id, name) {
   }
 }
 
+// Après une action sur un membre : recharge la fiche club, ou les résultats de recherche
+// si l'action a été lancée depuis la recherche (clubId à null).
+function refreshAfter(clubId) {
+  return clubId ? openClub(clubId) : searchEmail();
+}
+
 async function removeMembership(membershipId, clubId) {
   if (!confirm('Retirer ce membre du club ?')) return;
   try {
     await api('/api/memberships/' + membershipId, { method: 'DELETE' });
-    openClub(clubId);
+    refreshAfter(clubId);
   } catch (e) {
     alert('Échec : ' + e.message);
   }
@@ -245,20 +268,20 @@ async function renameMember(membershipId, clubId, currentName) {
   if (!display_name || display_name === currentName) return;
   try {
     await api('/api/memberships/' + membershipId, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ display_name }) });
-    openClub(clubId);
+    refreshAfter(clubId);
   } catch (e) {
     alert('Échec : ' + e.message);
   }
 }
 
 async function changeRole(membershipId, clubId, role, selectEl) {
-  if (!confirm(`Changer le rôle en « ${role} » ?`)) { openClub(clubId); return; }
+  if (!confirm(`Changer le rôle en « ${role} » ?`)) { refreshAfter(clubId); return; }
   try {
     await api('/api/memberships/' + membershipId, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ role }) });
-    openClub(clubId);
+    refreshAfter(clubId);
   } catch (e) {
     alert('Échec : ' + e.message);
-    openClub(clubId);
+    refreshAfter(clubId);
   }
 }
 
@@ -268,7 +291,7 @@ async function deleteAccount(userId, email, clubId) {
   try {
     await api(`/api/accounts/${userId}?confirm_email=${encodeURIComponent(typed)}`, { method: 'DELETE' });
     alert('Compte supprimé.');
-    openClub(clubId);
+    refreshAfter(clubId);
   } catch (e) {
     alert('Échec : ' + e.message);
   }
