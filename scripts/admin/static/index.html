@@ -1,0 +1,316 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>TrackClub — Admin local</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  :root { color-scheme: light dark; }
+  body { font-family: -apple-system, system-ui, sans-serif; margin: 0; padding: 24px; max-width: 1000px; margin-inline: auto; }
+  h1 { font-size: 1.3rem; margin-bottom: 4px; }
+  .banner { background: #7a2020; color: white; padding: 10px 14px; border-radius: 8px; margin-bottom: 20px; font-size: 0.9rem; }
+  table { width: 100%; border-collapse: collapse; margin-bottom: 24px; font-size: 0.92rem; }
+  th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid #8884; }
+  th { font-weight: 600; opacity: 0.7; }
+  tr:hover td { background: #8882; }
+  button { cursor: pointer; border: 1px solid #8886; background: transparent; border-radius: 6px; padding: 4px 10px; font-size: 0.85rem; color: inherit; }
+  button.danger { border-color: #c0392b; color: #c0392b; }
+  button:disabled { opacity: 0.4; cursor: default; }
+  input[type=text], input[type=email] { padding: 6px 8px; border: 1px solid #8886; border-radius: 6px; font-size: 0.9rem; background: transparent; color: inherit; }
+  .row { display: flex; gap: 8px; align-items: center; margin-bottom: 16px; }
+  .muted { opacity: 0.65; font-size: 0.85rem; }
+  .hidden { display: none; }
+  #back { margin-bottom: 12px; }
+  .badge { display: inline-block; padding: 1px 7px; border-radius: 10px; font-size: 0.75rem; background: #8883; }
+  .badge.pending { background: #b8860b55; }
+  section h2 { font-size: 1.05rem; margin: 18px 0 6px; }
+</style>
+</head>
+<body>
+  <h1>TrackClub — Admin local</h1>
+  <div class="banner">
+    Connecté directement à la base de production. Les suppressions sont définitives et immédiates.
+  </div>
+
+  <div id="view-list">
+    <div class="row">
+      <input type="email" id="search-email" placeholder="Chercher un utilisateur par e-mail…">
+      <button onclick="searchEmail()">Chercher</button>
+    </div>
+    <div id="search-results"></div>
+
+    <h2>Clubs</h2>
+    <div class="row">
+      <input type="text" id="new-club-name" placeholder="Nom du nouveau club">
+      <input type="email" id="new-club-owner" placeholder="E-mail du propriétaire (compte existant)">
+      <button onclick="createClub()">Créer un club</button>
+    </div>
+    <table>
+      <thead>
+        <tr>
+          <th>Nom</th><th>Créé le</th><th>Propriétaire</th>
+          <th>Membres</th><th>En attente</th><th>Athlètes</th><th>Groupes</th><th>Séances</th><th></th>
+        </tr>
+      </thead>
+      <tbody id="clubs-body"></tbody>
+    </table>
+  </div>
+
+  <div id="view-detail" class="hidden">
+    <button id="back" onclick="showList()">&larr; Retour</button>
+    <div id="detail-content"></div>
+  </div>
+
+<script>
+function esc(s) { return String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function fmtDate(s) { return s ? new Date(s).toLocaleDateString('fr-FR') : '—'; }
+
+async function api(path, options) {
+  const res = await fetch(path, options);
+  const body = await res.json();
+  if (!res.ok) throw new Error(body.error || res.statusText);
+  return body;
+}
+
+function showList() {
+  document.getElementById('view-detail').classList.add('hidden');
+  document.getElementById('view-list').classList.remove('hidden');
+  loadClubs();
+}
+
+async function loadClubs() {
+  const clubs = await api('/api/clubs');
+  const body = document.getElementById('clubs-body');
+  body.innerHTML = clubs.map(c => `
+    <tr>
+      <td>${esc(c.name)}</td>
+      <td>${fmtDate(c.created_at)}</td>
+      <td>${esc(c.owner_name)}<br><span class="muted">${esc(c.owner_email ?? '')}</span></td>
+      <td>${c.members_count}</td>
+      <td>${c.pending_count > 0 ? `<span class="badge pending">${c.pending_count}</span>` : '0'}</td>
+      <td>${c.athletes_count}</td>
+      <td>${c.groups_count}</td>
+      <td>${c.sessions_count}</td>
+      <td><button onclick="openClub('${c.id}')">Voir</button></td>
+    </tr>
+  `).join('') || '<tr><td colspan="9" class="muted">Aucun club.</td></tr>';
+}
+
+async function searchEmail() {
+  const email = document.getElementById('search-email').value.trim();
+  const box = document.getElementById('search-results');
+  if (email.length < 2) { box.innerHTML = ''; return; }
+  const results = await api('/api/search?email=' + encodeURIComponent(email));
+  box.innerHTML = results.length ? `
+    <table><tbody>
+      ${results.map(r => `
+        <tr>
+          <td>${esc(r.email)}</td>
+          <td>${esc(r.display_name)}</td>
+          <td>${esc(r.role)} · ${esc(r.status)}</td>
+          <td>${esc(r.club_name)}</td>
+          <td><button onclick="openClub('${r.club_id}')">Voir le club</button></td>
+        </tr>
+      `).join('')}
+    </tbody></table>
+  ` : '<p class="muted">Aucun résultat.</p>';
+}
+
+async function openClub(id) {
+  const data = await api('/api/clubs/' + id);
+  document.getElementById('view-list').classList.add('hidden');
+  document.getElementById('view-detail').classList.remove('hidden');
+  renderDetail(data);
+}
+
+function renderDetail(data) {
+  const { club, members, groups, athletes, recentSessions } = data;
+  document.getElementById('detail-content').innerHTML = `
+    <h2>${esc(club.name)} <button onclick="renameClub('${club.id}', ${JSON.stringify(club.name)})">Renommer</button></h2>
+    <p class="muted">Créé le ${fmtDate(club.created_at)} · id ${esc(club.id)}</p>
+    <button class="danger" onclick="deleteClub('${club.id}', ${JSON.stringify(club.name)})">Supprimer ce club</button>
+
+    <h2>Membres (${members.length})</h2>
+    <table><thead><tr><th>Nom</th><th>E-mail</th><th>Rôle</th><th>Statut</th><th></th></tr></thead>
+    <tbody>
+      ${members.map(m => `
+        <tr>
+          <td>${esc(m.display_name)} <button onclick="renameMember('${m.id}', '${club.id}', ${JSON.stringify(m.display_name)})">✎</button></td>
+          <td>${esc(m.email ?? '—')}</td>
+          <td>
+            <select onchange="changeRole('${m.id}', '${club.id}', this.value, this)" ${m.status === 'pending' ? 'disabled' : ''}>
+              <option value="owner" ${m.role === 'owner' ? 'selected' : ''}>owner</option>
+              <option value="coach" ${m.role === 'coach' ? 'selected' : ''}>coach</option>
+              <option value="athlete" ${m.role === 'athlete' ? 'selected' : ''}>athlete</option>
+            </select>
+          </td>
+          <td>${m.status === 'pending' ? '<span class="badge pending">en attente</span>' : 'actif'}</td>
+          <td>
+            ${m.role === 'owner' ? '' : `<button class="danger" onclick="removeMembership('${m.id}', '${club.id}')">Retirer du club</button>`}
+            ${m.user_id ? `<button class="danger" onclick="deleteAccount('${m.user_id}', ${JSON.stringify(m.email)}, '${club.id}')">Supprimer le compte</button>` : ''}
+          </td>
+        </tr>
+      `).join('') || '<tr><td colspan="5" class="muted">Aucun membre.</td></tr>'}
+    </tbody></table>
+
+    <h2>Groupes (${groups.length})</h2>
+    <div class="row">
+      <input type="text" id="new-group-name" placeholder="Nom du nouveau groupe">
+      <button onclick="createGroup('${club.id}')">Ajouter un groupe</button>
+    </div>
+    <table><thead><tr><th>Nom</th><th>Athlètes</th><th>Archivé</th><th></th></tr></thead>
+    <tbody>
+      ${groups.map(g => `
+        <tr>
+          <td>${esc(g.name)}</td>
+          <td>${g.athletes_count}</td>
+          <td>${g.archived ? 'oui' : 'non'}</td>
+          <td>
+            <button onclick="renameGroup('${g.id}', '${club.id}', ${JSON.stringify(g.name)})">Renommer</button>
+            <button onclick="toggleGroupArchived('${g.id}', '${club.id}', ${g.archived ? 'false' : 'true'})">${g.archived ? 'Désarchiver' : 'Archiver'}</button>
+            <button class="danger" onclick="deleteGroup('${g.id}', '${club.id}', ${JSON.stringify(g.name)})">Supprimer</button>
+          </td>
+        </tr>
+      `).join('') || '<tr><td colspan="4" class="muted">Aucun groupe.</td></tr>'}
+    </tbody></table>
+
+    <h2>Athlètes (${athletes.length})</h2>
+    <table><thead><tr><th>Nom</th><th>A un compte</th></tr></thead>
+    <tbody>
+      ${athletes.map(a => `<tr><td>${esc(a.full_name)}</td><td>${a.has_account ? 'oui' : 'non'}</td></tr>`).join('') || '<tr><td colspan="2" class="muted">Aucun athlète.</td></tr>'}
+    </tbody></table>
+
+    <h2>Dernières séances</h2>
+    <table><thead><tr><th>Date</th><th>Titre</th><th>Type</th><th>Groupe</th></tr></thead>
+    <tbody>
+      ${recentSessions.map(s => `<tr><td>${fmtDate(s.scheduled_date)}</td><td>${esc(s.title)}</td><td>${esc(s.type_name)}</td><td>${esc(s.group_name ?? '—')}</td></tr>`).join('') || '<tr><td colspan="4" class="muted">Aucune séance.</td></tr>'}
+    </tbody></table>
+  `;
+}
+
+async function deleteClub(id, name) {
+  const typed = prompt(`Suppression définitive et irréversible.\nTape exactement le nom du club pour confirmer :\n\n${name}`);
+  if (typed === null) return;
+  try {
+    await api(`/api/clubs/${id}?confirm_name=${encodeURIComponent(typed)}`, { method: 'DELETE' });
+    alert('Club supprimé.');
+    showList();
+  } catch (e) {
+    alert('Échec : ' + e.message);
+  }
+}
+
+async function removeMembership(membershipId, clubId) {
+  if (!confirm('Retirer ce membre du club ?')) return;
+  try {
+    await api('/api/memberships/' + membershipId, { method: 'DELETE' });
+    openClub(clubId);
+  } catch (e) {
+    alert('Échec : ' + e.message);
+  }
+}
+
+async function createClub() {
+  const name = document.getElementById('new-club-name').value.trim();
+  const owner_email = document.getElementById('new-club-owner').value.trim();
+  if (!name || !owner_email) { alert('Nom et e-mail du propriétaire requis.'); return; }
+  try {
+    await api('/api/clubs', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name, owner_email }) });
+    document.getElementById('new-club-name').value = '';
+    document.getElementById('new-club-owner').value = '';
+    loadClubs();
+  } catch (e) {
+    alert('Échec : ' + e.message);
+  }
+}
+
+async function renameClub(id, currentName) {
+  const name = prompt('Nouveau nom du club :', currentName);
+  if (!name || name === currentName) return;
+  try {
+    await api('/api/clubs/' + id, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name }) });
+    openClub(id);
+  } catch (e) {
+    alert('Échec : ' + e.message);
+  }
+}
+
+async function renameMember(membershipId, clubId, currentName) {
+  const display_name = prompt('Nouveau nom affiché :', currentName);
+  if (!display_name || display_name === currentName) return;
+  try {
+    await api('/api/memberships/' + membershipId, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ display_name }) });
+    openClub(clubId);
+  } catch (e) {
+    alert('Échec : ' + e.message);
+  }
+}
+
+async function changeRole(membershipId, clubId, role, selectEl) {
+  if (!confirm(`Changer le rôle en « ${role} » ?`)) { openClub(clubId); return; }
+  try {
+    await api('/api/memberships/' + membershipId, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ role }) });
+    openClub(clubId);
+  } catch (e) {
+    alert('Échec : ' + e.message);
+    openClub(clubId);
+  }
+}
+
+async function deleteAccount(userId, email, clubId) {
+  const typed = prompt(`Suppression définitive du compte entier (tous ses clubs, son profil...).\nTape exactement l'e-mail pour confirmer :\n\n${email}`);
+  if (typed === null) return;
+  try {
+    await api(`/api/accounts/${userId}?confirm_email=${encodeURIComponent(typed)}`, { method: 'DELETE' });
+    alert('Compte supprimé.');
+    openClub(clubId);
+  } catch (e) {
+    alert('Échec : ' + e.message);
+  }
+}
+
+async function createGroup(clubId) {
+  const name = document.getElementById('new-group-name').value.trim();
+  if (!name) return;
+  try {
+    await api('/api/groups', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ club_id: clubId, name }) });
+    openClub(clubId);
+  } catch (e) {
+    alert('Échec : ' + e.message);
+  }
+}
+
+async function renameGroup(groupId, clubId, currentName) {
+  const name = prompt('Nouveau nom du groupe :', currentName);
+  if (!name || name === currentName) return;
+  try {
+    await api('/api/groups/' + groupId, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name }) });
+    openClub(clubId);
+  } catch (e) {
+    alert('Échec : ' + e.message);
+  }
+}
+
+async function toggleGroupArchived(groupId, clubId, archived) {
+  try {
+    await api('/api/groups/' + groupId, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ archived: archived === 'true' }) });
+    openClub(clubId);
+  } catch (e) {
+    alert('Échec : ' + e.message);
+  }
+}
+
+async function deleteGroup(groupId, clubId, name) {
+  if (!confirm(`Supprimer définitivement le groupe « ${name} » ?`)) return;
+  try {
+    await api('/api/groups/' + groupId, { method: 'DELETE' });
+    openClub(clubId);
+  } catch (e) {
+    alert('Échec : ' + e.message);
+  }
+}
+
+loadClubs();
+</script>
+</body>
+</html>
