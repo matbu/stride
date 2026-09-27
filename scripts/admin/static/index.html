@@ -34,7 +34,8 @@
 
   <div id="view-list">
     <div class="row">
-      <input type="email" id="search-email" placeholder="Chercher un utilisateur par e-mail…">
+      <input type="search" id="search-email" placeholder="Chercher un utilisateur (e-mail ou nom, partiel)…"
+             onkeydown="if (event.key === 'Enter') searchEmail()">
       <button onclick="searchEmail()">Chercher</button>
     </div>
     <div id="search-results"></div>
@@ -100,16 +101,20 @@ async function searchEmail() {
   const email = document.getElementById('search-email').value.trim();
   const box = document.getElementById('search-results');
   if (email.length < 2) { box.innerHTML = ''; return; }
-  const results = await api('/api/search?email=' + encodeURIComponent(email));
+  const results = await api('/api/search?q=' + encodeURIComponent(email));
   box.innerHTML = results.length ? `
     <table><tbody>
-      ${results.map(r => `
+      ${results.map(r => r.club_id ? `
         <tr>
           <td>${esc(r.email)}</td>
           <td>${esc(r.display_name)}</td>
           <td>${esc(r.role)} · ${esc(r.status)}</td>
           <td>${esc(r.club_name)}</td>
           <td><button onclick="openClub('${r.club_id}')">Voir le club</button></td>
+        </tr>` : `
+        <tr>
+          <td>${esc(r.email)}</td>
+          <td colspan="4" class="muted">Aucun club</td>
         </tr>
       `).join('')}
     </tbody></table>

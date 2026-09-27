@@ -158,18 +158,25 @@ def club_detail(club_id: str):
         }
 
 
-def search_by_email(email: str):
+def search_users(term: str):
+    # Recherche partielle, insensible à la casse et aux accents, sur l'e-mail et le nom affiché.
+    # Les comptes sans club remontent aussi (club_id à null). Nécessite l'extension unaccent
+    # (migration 20260927120000_unaccent.sql).
+    escaped = term.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+    pattern = f"%{escaped}%"
     with get_conn() as conn, conn.cursor() as cur:
         cur.execute(
             """
             select m.club_id, c.name as club_name, m.role, m.status, m.display_name, u.email
-            from public.memberships m
-            join public.clubs c on c.id = m.club_id
-            join auth.users u on u.id = m.user_id
-            where u.email ilike %s
-            order by c.name
+            from auth.users u
+            left join public.memberships m on m.user_id = u.id
+            left join public.clubs c on c.id = m.club_id
+            where extensions.unaccent(u.email::text) ilike extensions.unaccent(%s)
+               or extensions.unaccent(m.display_name::text) ilike extensions.unaccent(%s)
+            order by u.email, c.name
+            limit 200
             """,
-            (f"%{email}%",),
+            (pattern, pattern),
         )
         return cur.fetchall()
 
@@ -432,10 +439,10 @@ class Handler(BaseHTTPRequestHandler):
                 return self._json(200, detail)
             if parts == ["api", "search"]:
                 qs = parse_qs(parsed.query)
-                email = (qs.get("email") or [""])[0].strip()
-                if len(email) < 2:
+                term = (qs.get("q") or qs.get("email") or [""])[0].strip()
+                if len(term) < 2:
                     return self._json(200, [])
-                return self._json(200, search_by_email(email))
+                return self._json(200, search_users(term))
             return self._serve_static(unquote(parsed.path))
         except Exception as e:  # outil local mono-utilisateur : autant voir l'erreur telle quelle
             return self._error(500, str(e))
