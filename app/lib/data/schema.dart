@@ -100,6 +100,8 @@ const schema = Schema([
     Column.text('template_id'),
     Column.text('created_by'),
     Column.text('linked_id'),
+    // Tableau JSON d'ids de `resources` (texte en local, jsonb côté Postgres).
+    Column.text('resource_ids'),
   ]),
   Table('session_blocks', [
     Column.text('club_id'),
@@ -120,6 +122,19 @@ const schema = Schema([
     Column.text('location'),
     Column.text('priority'),
     Column.text('notes'),
+    Column.text('created_by'),
+  ]),
+  // Ressources du club (liens, photos, vidéos) ; `source_id` = référence à une ressource
+  // publique d'un autre club (voir la migration `resources`).
+  Table('resources', [
+    Column.text('club_id'),
+    Column.text('source_id'),
+    Column.text('kind'),
+    Column.text('title'),
+    Column.text('description'),
+    Column.text('url'),
+    Column.text('storage_path'),
+    Column.text('visibility'),
     Column.text('created_by'),
   ]),
   Table('event_groups', [

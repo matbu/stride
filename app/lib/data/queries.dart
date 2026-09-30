@@ -297,3 +297,17 @@ final eventGroupsProvider = StreamProvider<Map<String, Set<String>>>((ref) {
     return map;
   });
 });
+
+// --- Ressources ---------------------------------------------------------------------------
+
+/// Ressources du club (les siennes et les références à des ressources publiques), par titre.
+final resourcesProvider = StreamProvider<List<Resource>>((ref) {
+  final clubId = ref.watch(clubIdProvider);
+  if (clubId == null) return Stream.value(const []);
+  return _query(
+    ref,
+    'SELECT * FROM resources WHERE club_id = ? ORDER BY title COLLATE NOCASE',
+    [clubId],
+    Resource.fromRow,
+  );
+});

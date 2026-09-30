@@ -16,6 +16,7 @@ import 'package:trackclub/data/event_actions.dart';
 import 'package:trackclub/data/models.dart';
 import 'package:trackclub/data/profile_actions.dart';
 import 'package:trackclub/data/queries.dart';
+import 'package:trackclub/data/resource_actions.dart';
 import 'package:trackclub/data/session_actions.dart';
 
 const testUser = User(
@@ -174,6 +175,32 @@ class FakeEventActions extends Fake implements EventActions {
   Future<void> delete(String id) async => deleted.add(id);
 }
 
+class FakeResourceActions extends Fake implements ResourceActions {
+  final links = <({String url, String title, bool isPublic})>[];
+  final deleted = <String>[];
+  final addedPublic = <String>[];
+  Resource? publicMatch;
+
+  @override
+  Future<void> addLink({
+    required String clubId,
+    required String url,
+    required String title,
+    String description = '',
+    required bool isPublic,
+  }) async =>
+      links.add((url: url, title: title.trim(), isPublic: isPublic));
+
+  @override
+  Future<Resource?> findPublicByUrl({required String clubId, required String url}) async => publicMatch;
+
+  @override
+  Future<void> addPublic({required String clubId, required Resource source}) async => addedPublic.add(source.id);
+
+  @override
+  Future<void> delete(Resource r) async => deleted.add(r.id);
+}
+
 class FakeAccountActions extends Fake implements AccountActions {
   bool deleted = false;
   bool pendingUploads = false;
@@ -273,6 +300,8 @@ List<Override> clubOverrides({
   List<Event> events = const [],
   Map<String, Set<String>> eventGroups = const {}, // eventId -> groupIds (vide = tout le club)
   FakeEventActions? eventActions,
+  List<Resource> resources = const [],
+  FakeResourceActions? resourceActions,
 }) {
   final m = me ?? membership();
   return [
@@ -304,5 +333,7 @@ List<Override> clubOverrides({
     completionsForAthleteProvider.overrideWith((ref, id) => Stream.value(completions[id] ?? const <String>{})),
     attendanceForDateProvider.overrideWith((ref, date) => Stream.value(attendanceToday)),
     attendanceDatesForAthleteProvider.overrideWith((ref, id) => Stream.value(attendanceDates[id] ?? const <String>[])),
+    resourcesProvider.overrideWith((ref) => Stream.value(resources)),
+    resourceActionsProvider.overrideWithValue(resourceActions ?? FakeResourceActions()),
   ];
 }

@@ -378,5 +378,59 @@ run(eve, "update public.profiles set display_name = 'Eve Martin' where id = %s",
 check("le nom se propage aux adhésions", su("select display_name from public.memberships where user_id=%s", (eve,))[0][0] == "Eve Martin")
 check("on ne voit que son propre profil", count(eve, "profiles") == 1)
 
+print("ressources")
+# Marc est owner de « AC Test », Eve y est athlète ; Bob crée un second club, Ugo n'est nulle part.
+bob, ugo = user("bob"), user("ugo")
+club_b = one(bob, "select public.create_club(%s)", ("Club B",))
+res_sql = ("insert into public.resources (club_id, kind, title, url, storage_path, visibility, created_by) "
+           "values (%s, %s, %s, %s, %s, %s, %s) returning id")
+gammes = one(marc, res_sql, (club, "youtube", "Gammes", "https://youtu.be/abc", None, "club", marc))
+video = one(marc, res_sql, (club, "video", "Blocs", None, f"{club}/blocs.mp4", "public", marc))
+fails("un athlète n'ajoute pas de ressource", eve, res_sql,
+      (club, "link", "X", "https://x.fr", None, "club", eve), "row-level security")
+fails("lien non http(s) refusé", marc, res_sql,
+      (club, "link", "X", "javascript:alert(1)", None, "club", marc), "check constraint")
+fails("fichier d'un autre club refusé", bob, res_sql,
+      (club_b, "video", "Vol", None, f"{club}/blocs.mp4", "club", bob), "resource_foreign_file")
+check("un athlète du club voit les ressources du club", count(eve, "resources") == 2)
+check("un autre club ne voit que la publique", count(bob, "resources") == 1)
+check("un inscrit sans club voit aussi la publique", count(ugo, "resources", "id = %s", (video,)) == 1)
+
+ref_sql = "insert into public.resources (club_id, source_id, kind, title, created_by) values (%s, %s, 'link', 'x', %s) returning id"
+fails("une ressource « club » ne s'ajoute pas ailleurs", bob, ref_sql, (club_b, gammes, bob), "resource_not_public")
+fails("pas de référence à sa propre ressource", marc, ref_sql, (club, video, marc), "resource_own_club")
+ref = one(bob, ref_sql, (club_b, video, bob))
+check("la référence recopie l'originale",
+      su("select kind, title, storage_path, visibility from public.resources where id=%s", (ref,))
+      == [("video", "Blocs", f"{club}/blocs.mp4", "club")])
+fails("une ressource publique ne s'ajoute qu'une fois", bob, ref_sql, (club_b, video, bob), "duplicate key")
+run(marc, "update public.resources set title = 'Départ en blocs' where id = %s", (video,))
+check("la référence suit les modifications", su("select title from public.resources where id=%s", (ref,))[0][0] == "Départ en blocs")
+run(bob, "update public.resources set title = 'Pirate' where id = %s", (ref,))
+check("une référence n'est pas modifiable", su("select title from public.resources where id=%s", (ref,))[0][0] == "Départ en blocs")
+
+cur.execute("insert into storage.objects (bucket_id, name, owner) values ('resources', %s, %s)", (f"{club}/blocs.mp4", marc))
+check("fichier lisible par un athlète du club",
+      one(eve, "select count(*) from storage.objects where bucket_id='resources'") == 1)
+check("fichier public lisible par un autre club", one(bob, "select count(*) from storage.objects where bucket_id='resources'") == 1)
+fails("un autre club n'écrit pas dans le dossier du club", bob,
+      "insert into storage.objects (bucket_id, name, owner) values ('resources', %s, %s)", (f"{club}/x.mp4", bob), "row-level security")
+
+run(marc, "update public.resources set visibility = 'club' where id = %s", (video,))
+check("repassée en « club » : la référence disparaît", len(su("select 1 from public.resources where id=%s", (ref,))) == 0)
+check("repassée en « club » : fichier illisible hors du club",
+      one(bob, "select count(*) from storage.objects where bucket_id='resources'") == 0)
+check("repassée en « club » : invisible des autres clubs", count(bob, "resources") == 0)
+
+run(marc, "update public.resources set visibility = 'public' where id = %s", (video,))
+ref = one(bob, ref_sql, (club_b, video, bob))
+run(marc, "delete from public.resources where id = %s", (video,))
+check("originale supprimée : la référence disparaît", len(su("select 1 from public.resources where id=%s", (ref,))) == 0)
+
+sess = su("select id from public.sessions where club_id=%s limit 1", (club,))[0][0]
+check("resource_ids vaut [] par défaut", su("select resource_ids from public.sessions where id=%s", (sess,))[0][0] == [])
+run(marc, "update public.sessions set resource_ids = %s::jsonb where id = %s", (f'["{gammes}"]', sess))
+check("resource_ids enregistré", su("select resource_ids from public.sessions where id=%s", (sess,))[0][0] == [gammes])
+
 print(f"\n{passed} contrôles réussis, {failed} échecs")
 sys.exit(1 if failed else 0)

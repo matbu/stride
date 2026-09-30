@@ -339,7 +339,8 @@ void main() {
     testWidgets('bibliothèque vide : message et création possible', (tester) async {
       await tester.pumpWidget(testApp(const LibraryScreen(), overrides: clubOverrides()));
       await tester.pumpAndSettle();
-      expect(find.text('Ta bibliothèque est vide'), findsOneWidget);
+      expect(find.text('Séances (0)'), findsOneWidget);
+      expect(find.textContaining('Crée des séances en amont'), findsOneWidget);
       expect(find.byKey(const Key('new-template')), findsOneWidget);
     });
 

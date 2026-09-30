@@ -6,12 +6,13 @@ import '../club/club_screen.dart';
 import '../club/profile_screen.dart';
 import '../library/library_screen.dart';
 import '../planning/week_screen.dart';
+import '../resources/resources_screen.dart';
 import '../season/season_screen.dart';
 import 'overview_screen.dart';
 
 /// Navigation principale. Coach : Accueil, Semaine, Saison, Modèles (bibliothèque), Club.
-/// Athlète : Accueil, Semaine, Saison, Profil. Accueil est l'onglet par défaut, donc le premier
-/// écran après connexion.
+/// Athlète : Accueil, Semaine, Saison, Ressources, Profil. Accueil est l'onglet par défaut,
+/// donc le premier écran après connexion.
 class HomeShell extends ConsumerStatefulWidget {
   const HomeShell({super.key});
 
@@ -25,9 +26,9 @@ class _HomeShellState extends ConsumerState<HomeShell> {
   @override
   Widget build(BuildContext context) {
     final isCoach = ref.watch(isCoachProvider);
-    // Le nombre d'onglets dépend du rôle (5 coach, 4 athlète) : si le rôle change pendant qu'on
-    // est sur le dernier onglet (déconnexion, rôle modifié à distance), l'index sort des bornes.
-    final tabCount = isCoach ? 5 : 4;
+    // Garde-fou si les onglets changent avec le rôle (déconnexion, rôle modifié à distance) :
+    // l'index mémorisé ne doit jamais sortir des bornes.
+    const tabCount = 5;
     final index = _index < tabCount ? _index : tabCount - 1;
     return Scaffold(
       body: IndexedStack(
@@ -36,7 +37,8 @@ class _HomeShellState extends ConsumerState<HomeShell> {
           const OverviewScreen(),
           const WeekScreen(),
           const SeasonScreen(),
-          if (isCoach) const LibraryScreen(),
+          // Athlète : la bibliothèque se limite aux ressources du club, en lecture seule.
+          isCoach ? const LibraryScreen() : const ResourcesScreen(),
           isCoach ? const ClubScreen() : const ProfileScreen(),
         ],
       ),
@@ -59,14 +61,13 @@ class _HomeShellState extends ConsumerState<HomeShell> {
             selectedIcon: Icon(Icons.emoji_events),
             label: 'Saison',
           ),
-          if (isCoach)
-            const NavigationDestination(
-              icon: Icon(Icons.library_books_outlined),
-              selectedIcon: Icon(Icons.library_books),
-              // « Bibliothèque » (titre de l'écran) ne tient plus sur une ligne dans la barre
-              // du bas depuis l'ajout de l'onglet Saison (5 onglets, moins de place chacun).
-              label: 'Modèles',
-            ),
+          NavigationDestination(
+            icon: Icon(isCoach ? Icons.library_books_outlined : Icons.video_library_outlined),
+            selectedIcon: Icon(isCoach ? Icons.library_books : Icons.video_library),
+            // « Bibliothèque » (titre de l'écran) ne tient pas sur une ligne dans la barre du
+            // bas (5 onglets, peu de place chacun).
+            label: isCoach ? 'Modèles' : 'Ressources',
+          ),
           NavigationDestination(
             icon: Icon(isCoach ? Icons.groups_outlined : Icons.person_outline),
             selectedIcon: Icon(isCoach ? Icons.groups : Icons.person),

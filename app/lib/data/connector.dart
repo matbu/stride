@@ -73,6 +73,7 @@ class SupabaseConnector extends PowerSyncBackendConnector {
 /// PostgREST les stockerait comme une *chaîne* JSON et non comme un tableau/objet.
 const _jsonColumns = {
   'session_blocks': {'items'},
+  'sessions': {'resource_ids'},
 };
 
 /// Remplace, dans une ligne à envoyer, les colonnes JSON textuelles par leur valeur décodée.

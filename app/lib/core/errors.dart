@@ -1,11 +1,14 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../data/resource_actions.dart' show ResourceTooLarge;
+
 /// Traduit les erreurs techniques (codes des RPC, erreurs d'auth) en messages pour l'utilisateur.
 String humanError(Object error) {
   if (error is AuthException) return _authMessage(error);
   if (error is PostgrestException) {
     return _rpcMessages[error.message] ?? 'Une erreur est survenue (${error.message}).';
   }
+  if (error is ResourceTooLarge) return error.toString();
   if (error is StorageException) return 'Envoi impossible (${error.message}).';
   final text = error.toString();
   if (text.contains('SocketException') ||
@@ -39,4 +42,6 @@ const _rpcMessages = {
   'new_owner_must_be_active_coach': 'Le nouveau super coach doit être un coach du club.',
   'request_not_found': 'Cette demande n’existe plus.',
   'not_authenticated': 'Session expirée, reconnecte-toi.',
+  'resource_not_public': 'Cette ressource n’est plus publique.',
+  'resource_own_club': 'Cette ressource appartient déjà à ton club.',
 };

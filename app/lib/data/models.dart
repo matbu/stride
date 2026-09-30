@@ -165,6 +165,7 @@ class PlannedSession {
     this.durationMin,
     this.description = '',
     this.linkedId,
+    this.resourceIds = const [],
   });
   factory PlannedSession.fromRow(DbRow r) => PlannedSession(
         id: r['id'] as String,
@@ -176,6 +177,7 @@ class PlannedSession {
         durationMin: r['duration_min'] as int?,
         description: (r['description'] as String?) ?? '',
         linkedId: r['linked_id'] as String?,
+        resourceIds: decodeResourceIds(r['resource_ids']),
       );
   final String id;
   final String typeId;
@@ -191,6 +193,9 @@ class PlannedSession {
   /// Partagé par les séances créées (ou éditées) ensemble pour plusieurs groupes : permet de les
   /// afficher comme une seule séance multi-groupes. Null pour une séance à un seul groupe.
   final String? linkedId;
+
+  /// Ressources attachées (ids de `resources`, dans l'ordre).
+  final List<String> resourceIds;
 }
 
 /// Modèle de la bibliothèque : une séance sans groupe ni date.
@@ -201,6 +206,7 @@ class Template {
     required this.title,
     this.description = '',
     this.durationMin,
+    this.resourceIds = const [],
   });
   factory Template.fromRow(DbRow r) => Template(
         id: r['id'] as String,
@@ -208,12 +214,104 @@ class Template {
         title: r['title'] as String,
         description: (r['description'] as String?) ?? '',
         durationMin: r['duration_min'] as int?,
+        resourceIds: decodeResourceIds(r['resource_ids']),
       );
   final String id;
   final String typeId;
   final String title;
   final String description;
   final int? durationMin;
+  final List<String> resourceIds;
+}
+
+/// `sessions.resource_ids` : tableau JSON en texte dans la base locale (null avant la première
+/// synchronisation d'une ligne créée par une ancienne version de l'app).
+List<String> decodeResourceIds(Object? raw) {
+  if (raw is! String || raw.isEmpty) return const [];
+  final decoded = jsonDecode(raw);
+  return decoded is List ? [for (final id in decoded) id as String] : const [];
+}
+
+enum ResourceKind {
+  youtube('YouTube'),
+  instagram('Instagram'),
+  link('Lien'),
+  image('Photo'),
+  video('Vidéo');
+
+  const ResourceKind(this.label);
+  final String label;
+
+  bool get isFile => this == image || this == video;
+
+  static ResourceKind parse(String? s) =>
+      values.firstWhere((k) => k.name == s, orElse: () => ResourceKind.link);
+
+  /// Nature d'un lien d'après son hôte : YouTube et Instagram s'ouvrent dans leur app si elle
+  /// est installée (liens universels), le reste dans le navigateur.
+  static ResourceKind ofUrl(Uri uri) {
+    final host = uri.host.toLowerCase();
+    if (host == 'youtu.be' || host.endsWith('youtube.com')) return youtube;
+    if (host.endsWith('instagram.com')) return instagram;
+    return link;
+  }
+}
+
+/// Ressource du club : lien (YouTube, Instagram, web) ou média (photo, vidéo) stocké dans le
+/// bucket privé 'resources'. `sourceId` non null = référence à une ressource publique d'un
+/// autre club, dont le contenu est recopié par le serveur (non modifiable ici).
+class Resource {
+  const Resource({
+    required this.id,
+    required this.clubId,
+    required this.kind,
+    required this.title,
+    this.description = '',
+    this.url,
+    this.storagePath,
+    this.isPublic = false,
+    this.sourceId,
+  });
+  factory Resource.fromRow(DbRow r) => Resource(
+        id: r['id'] as String,
+        clubId: r['club_id'] as String,
+        kind: ResourceKind.parse(r['kind'] as String?),
+        title: (r['title'] as String?) ?? '',
+        description: (r['description'] as String?) ?? '',
+        url: r['url'] as String?,
+        storagePath: r['storage_path'] as String?,
+        isPublic: r['visibility'] == 'public',
+        sourceId: r['source_id'] as String?,
+      );
+  final String id;
+  final String clubId;
+  final ResourceKind kind;
+  final String title;
+  final String description;
+  final String? url;
+  final String? storagePath;
+  final bool isPublic;
+  final String? sourceId;
+
+  bool get isReference => sourceId != null;
+
+  /// Miniature YouTube, sans clé d'API (image publique de la vidéo) ; null sinon.
+  String? get youtubeThumbnail {
+    if (kind != ResourceKind.youtube || url == null) return null;
+    final id = youtubeVideoId(Uri.tryParse(url!));
+    return id == null ? null : 'https://img.youtube.com/vi/$id/mqdefault.jpg';
+  }
+}
+
+/// Id de vidéo d'une URL YouTube : youtu.be/ID, youtube.com/watch?v=ID, /shorts/ID, /embed/ID.
+String? youtubeVideoId(Uri? uri) {
+  if (uri == null) return null;
+  if (uri.host.toLowerCase() == 'youtu.be') return uri.pathSegments.firstOrNull;
+  final v = uri.queryParameters['v'];
+  if (v != null && v.isNotEmpty) return v;
+  final segs = uri.pathSegments;
+  if (segs.length >= 2 && (segs[0] == 'shorts' || segs[0] == 'embed' || segs[0] == 'live')) return segs[1];
+  return null;
 }
 
 enum BlockKind {

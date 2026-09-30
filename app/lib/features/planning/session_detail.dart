@@ -7,6 +7,7 @@ import '../../data/models.dart';
 import '../../data/queries.dart';
 import '../../data/session_actions.dart';
 import '../common.dart';
+import '../resources/resource_widgets.dart';
 import 'block_card.dart';
 import 'session_badge.dart';
 
@@ -121,6 +122,12 @@ class SessionDetailScreen extends ConsumerWidget {
               ],
               if (volume > 0)
                 Text('Volume d’effort : ${formatDistance(volume)}', style: theme.textTheme.titleSmall),
+              if (session.resourceIds.isNotEmpty) ...[
+                const SizedBox(height: 20),
+                Text('Ressources', style: theme.textTheme.labelLarge),
+                const SizedBox(height: 8),
+                SessionResources(resourceIds: session.resourceIds),
+              ],
             ],
           ),
         ),

@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:powersync/powersync.dart';
 import 'package:sqlite_async/sqlite_async.dart' show SqliteWriteContext;
@@ -92,6 +94,7 @@ class SessionActions {
             title: d.title,
             description: d.description,
             durationMin: d.durationMin,
+            resourceIds: d.resourceIds,
           );
           await _writeSession(tx, templateId, template, clubId, isNew: true);
           await _writeBlocks(tx, templateId, clubId, null, [for (final b in d.blocks) b.copy(freshId: true)]);
@@ -110,22 +113,24 @@ class SessionActions {
     String? linkedId,
   }) async {
     final date = d.isTemplate ? null : d.date;
+    final resourceIds = jsonEncode(d.resourceIds);
     final time = d.isTemplate || d.startTime == null ? null : '${d.startTime}:00';
     if (isNew) {
       await tx.execute(
         'INSERT INTO sessions (id, club_id, type_id, title, description, is_template, group_id, '
-        'scheduled_date, start_time, duration_min, location, template_id, created_by, linked_id) '
-        "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, '', ?, ?, ?)",
+        'scheduled_date, start_time, duration_min, location, template_id, created_by, linked_id, '
+        'resource_ids) '
+        "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, '', ?, ?, ?, ?)",
         [
           id, clubId, d.typeId, d.title.trim(), d.description, d.isTemplate ? 1 : 0,
-          groupId, date, time, d.durationMin, d.templateId, _userId(), linkedId,
+          groupId, date, time, d.durationMin, d.templateId, _userId(), linkedId, resourceIds,
         ],
       );
     } else {
       await tx.execute(
         'UPDATE sessions SET type_id = ?, title = ?, description = ?, group_id = ?, '
-        'scheduled_date = ?, start_time = ?, duration_min = ?, linked_id = ? WHERE id = ?',
-        [d.typeId, d.title.trim(), d.description, groupId, date, time, d.durationMin, linkedId, id],
+        'scheduled_date = ?, start_time = ?, duration_min = ?, linked_id = ?, resource_ids = ? WHERE id = ?',
+        [d.typeId, d.title.trim(), d.description, groupId, date, time, d.durationMin, linkedId, resourceIds, id],
       );
     }
   }
@@ -184,6 +189,7 @@ class SessionActions {
       durationMin: s['duration_min'] as int?,
       templateId: s['template_id'] as String?,
       blocks: [for (final r in blocks) BlockDraft.from(SessionBlock.fromRow(r))],
+      resourceIds: decodeResourceIds(s['resource_ids']),
     );
   }
 
@@ -208,6 +214,7 @@ class SessionActions {
         durationMin: t.durationMin,
         templateId: templateId,
         blocks: [for (final b in t.blocks) b.copy(freshId: true)],
+        resourceIds: t.resourceIds,
       ),
       clubId: clubId,
     );
@@ -224,6 +231,7 @@ class SessionActions {
         description: s.description,
         durationMin: s.durationMin,
         blocks: [for (final b in s.blocks) b.copy(freshId: true)],
+        resourceIds: s.resourceIds,
       ),
       clubId: clubId,
     );

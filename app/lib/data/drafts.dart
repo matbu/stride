@@ -58,8 +58,10 @@ class SessionDraft {
     this.originalGroupId,
     this.linkedId,
     List<BlockDraft>? blocks,
+    List<String>? resourceIds,
   })  : groupIds = groupIds ?? {},
-        blocks = blocks ?? [BlockDraft(kind: BlockKind.main)];
+        blocks = blocks ?? [BlockDraft(kind: BlockKind.main)],
+        resourceIds = resourceIds ?? [];
 
   factory SessionDraft.fromPlanned(PlannedSession s) => SessionDraft(
         id: s.id,
@@ -73,6 +75,7 @@ class SessionDraft {
         originalGroupId: s.groupId,
         linkedId: s.linkedId,
         blocks: [],
+        resourceIds: [...s.resourceIds],
       );
 
   factory SessionDraft.fromTemplate(Template t) => SessionDraft(
@@ -83,6 +86,7 @@ class SessionDraft {
         description: t.description,
         durationMin: t.durationMin,
         blocks: [],
+        resourceIds: [...t.resourceIds],
       );
 
   /// Existe déjà en base (édition) ; null pour une création.
@@ -115,6 +119,9 @@ class SessionDraft {
   /// Modèle d'origine, si la séance en est issue.
   String? templateId;
   final List<BlockDraft> blocks;
+
+  /// Ressources attachées (ids de `resources`), dans l'ordre d'affichage.
+  final List<String> resourceIds;
 
   int get volumeM => totalVolumeM(blocks.expand((b) => b.items));
 

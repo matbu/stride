@@ -37,6 +37,10 @@ bucket_definitions:
       - SELECT * FROM session_types WHERE club_id = bucket.club_id
       - SELECT * FROM events WHERE club_id = bucket.club_id
       - SELECT * FROM event_groups WHERE club_id = bucket.club_id
+      # Ressources du club, y compris les références à des ressources publiques d'autres clubs
+      # (une ligne par club qui l'utilise, voir la migration `resources`). Les ressources
+      # publiques des autres clubs ne sont pas synchronisées : on les parcourt en ligne.
+      - SELECT * FROM resources WHERE club_id = bucket.club_id
 
   # Ce que voient en plus les coachs et le propriétaire.
   club_coaches:

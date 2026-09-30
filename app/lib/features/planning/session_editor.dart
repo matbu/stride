@@ -10,6 +10,8 @@ import '../../data/models.dart';
 import '../../data/queries.dart';
 import '../../data/session_actions.dart';
 import '../common.dart';
+import '../resources/add_resource.dart';
+import '../resources/resource_widgets.dart';
 import 'block_card.dart';
 
 Future<void> openSessionEditor(BuildContext context, SessionDraft draft) {
@@ -180,6 +182,7 @@ class _SessionEditorScreenState extends ConsumerState<SessionEditorScreen> {
       title: _title.text.trim(),
       description: _d.description,
       durationMin: _d.durationMin,
+      resourceIds: [..._d.resourceIds],
       blocks: [
         for (final b in _d.blocks)
           if (b.items.isNotEmpty || b.title.isNotEmpty) b.copy(freshId: true),
@@ -238,6 +241,7 @@ class _SessionEditorScreenState extends ConsumerState<SessionEditorScreen> {
     ref.watch(clubIdProvider);
     final types = ref.watch(sessionTypesProvider).value ?? const <SessionType>[];
     final groups = ref.watch(groupsProvider).value ?? const <Group>[];
+    final resources = {for (final r in ref.watch(resourcesProvider).value ?? const <Resource>[]) r.id: r};
 
     return PopScope(
       canPop: !_dirty,
@@ -481,6 +485,49 @@ class _SessionEditorScreenState extends ConsumerState<SessionEditorScreen> {
                     ),
                   ],
                 ],
+                SectionHeader(
+                  'Ressources',
+                  trailing: TextButton.icon(
+                    key: const Key('session-add-resource'),
+                    icon: const Icon(Icons.attach_file, size: 18),
+                    label: const Text('Joindre'),
+                    onPressed: () async {
+                      final picked = await pickSessionResources(context, _d.resourceIds);
+                      if (picked == null) return;
+                      _d.resourceIds
+                        ..clear()
+                        ..addAll(picked);
+                      _touch();
+                    },
+                  ),
+                ),
+                if (_d.resourceIds.isEmpty)
+                  Text(
+                    'Une vidéo ou une photo pour illustrer un exercice (gammes, départ en blocs…). '
+                    'Les athlètes la voient dans le détail de la séance.',
+                    style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+                  )
+                else
+                  Card(
+                    clipBehavior: Clip.antiAlias,
+                    child: Column(
+                      children: [
+                        for (final id in _d.resourceIds)
+                          if (resources[id] case final r?)
+                            ResourceTile(
+                              resource: r,
+                              trailing: IconButton(
+                                tooltip: 'Retirer de la séance',
+                                icon: const Icon(Icons.close),
+                                onPressed: () {
+                                  _d.resourceIds.remove(id);
+                                  _touch();
+                                },
+                              ),
+                            ),
+                      ],
+                    ),
+                  ),
                 const SectionHeader('Notes'),
                 TextField(
                   key: const Key('session-notes'),

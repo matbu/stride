@@ -6,6 +6,8 @@
 	<true/>
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Choisir une photo ou une courte vidéo à ajouter aux ressources du club.</string>
 	<key>CFBundleDisplayName</key>
 	<string>TrackClub</string>
 	<key>CFBundleExecutable</key>
